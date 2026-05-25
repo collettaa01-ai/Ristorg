@@ -58,7 +58,7 @@
                 <path d="M9 21v-3M15 21v-3M12 2v4"/>
               </svg>
             </div>
-            <h3 class="area-name">Cucina</h3>
+            <h3 class="area-name">Staff cucina</h3>
             <p class="area-desc">Gestisci il personale di cucina</p>
           </div>
           <div class="area-card" data-area="sala">
@@ -69,7 +69,7 @@
                 <line x1="3" y1="22" x2="21" y2="22"/>
               </svg>
             </div>
-            <h3 class="area-name">Sala</h3>
+            <h3 class="area-name">Staff sala</h3>
             <p class="area-desc">Gestisci il personale di sala</p>
           </div>
           <div class="area-card area-card--add" id="addAreaCard">
@@ -107,8 +107,44 @@
             Torna alle aree
           </button>
           <h2 class="area-detail-title" id="areaDetailTitle"></h2>
-          <div class="area-detail-content">
-            <p class="area-detail-placeholder">La configurazione di quest'area sarà disponibile prossimamente.</p>
+
+          <nav class="sub-tabs" id="subTabs">
+            <button class="sub-tab active" data-tab="operatori">Operatori</button>
+            <button class="sub-tab" data-tab="orari">Orari</button>
+          </nav>
+
+          <!-- Tab: Operatori -->
+          <div class="tab-panel" id="tab-operatori">
+            <div class="tab-panel-header">
+              <button class="btn btn--primary" id="addOperatorBtn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Aggiungi nuovo operatore
+              </button>
+            </div>
+            <div class="operators-list" id="operatorsList">
+              <div class="empty-state" id="operatorsEmpty">
+                <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="7" r="4"/>
+                  <path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/>
+                </svg>
+                <p>Nessun operatore registrato</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Orari -->
+          <div class="tab-panel" id="tab-orari" style="display:none;">
+            <div class="coming-soon coming-soon--small">
+              <svg class="coming-soon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <h2>Orari</h2>
+              <p>Questa sotto-sezione sarà disponibile prossimamente.</p>
+            </div>
           </div>
         </div>
       </section>
@@ -148,6 +184,55 @@
       <div class="modal-footer">
         <button class="btn btn--secondary" id="modalCancel">Annulla</button>
         <button class="btn btn--primary" id="modalConfirm">Crea area</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for adding/editing operator -->
+  <div class="modal-overlay" id="operatorModalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="operatorModalTitle">Aggiungi nuovo operatore</h3>
+        <button class="modal-close" id="operatorModalClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label" for="opName">Nome operatore</label>
+        <input type="text" id="opName" class="modal-input" placeholder="Es. Mario Rossi">
+        <label class="modal-label mt-16" for="opRole">Mansione principale</label>
+        <input type="text" id="opRole" class="modal-input" placeholder="Es. Chef, Cameriere, Barista...">
+        <label class="modal-label mt-16" for="opContract">Tipologia di contratto</label>
+        <input type="text" id="opContract" class="modal-input" placeholder="Es. Tempo indeterminato, Stagionale...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="operatorModalCancel">Annulla</button>
+        <button class="btn btn--primary" id="operatorModalConfirm">Conferma registrazione</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm delete dialog -->
+  <div class="modal-overlay" id="deleteConfirmOverlay">
+    <div class="modal modal--small">
+      <div class="modal-header">
+        <h3>Conferma eliminazione</h3>
+        <button class="modal-close" id="deleteConfirmClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteConfirmText">Sei sicuro di voler eliminare questo operatore?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="deleteConfirmCancel">Annulla</button>
+        <button class="btn btn--danger" id="deleteConfirmOk">Elimina</button>
       </div>
     </div>
   </div>
