@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ristorg</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-logo">R</span>
+      <span class="sidebar-title">Ristorg</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-section="dipendenti">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="7" r="3.5"/>
+          <path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/>
+          <circle cx="18.5" cy="7.5" r="2.5"/>
+          <path d="M20 14a4 4 0 0 1 3 3.85V21"/>
+        </svg>
+        <span class="nav-label">Gestione dipendenti</span>
+      </a>
+      <a href="#" class="nav-item" data-section="prenotazioni">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+          <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+        </svg>
+        <span class="nav-label">Prenotazioni</span>
+      </a>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <button class="sidebar-toggle" id="sidebarToggle">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      <h1 class="topbar-title" id="topbarTitle">Gestione dipendenti</h1>
+    </header>
+
+    <div class="page-content">
+      <!-- Gestione Dipendenti -->
+      <section class="section" id="section-dipendenti">
+        <div class="areas-grid" id="areasGrid">
+          <div class="area-card" data-area="cucina">
+            <div class="area-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2C6.48 2 2 6 2 10c0 2.76 1.5 5.2 4 6.5V21h12v-4.5c2.5-1.3 4-3.74 4-6.5 0-4-4.48-8-10-8z"/>
+                <path d="M9 21v-3M15 21v-3M12 2v4"/>
+              </svg>
+            </div>
+            <h3 class="area-name">Cucina</h3>
+            <p class="area-desc">Gestisci il personale di cucina</p>
+          </div>
+          <div class="area-card" data-area="sala">
+            <div class="area-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 22V12l9-7 9 7v10"/>
+                <rect x="9" y="14" width="6" height="8"/>
+                <line x1="3" y1="22" x2="21" y2="22"/>
+              </svg>
+            </div>
+            <h3 class="area-name">Sala</h3>
+            <p class="area-desc">Gestisci il personale di sala</p>
+          </div>
+          <div class="area-card area-card--add" id="addAreaCard">
+            <div class="area-icon area-icon--add">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </div>
+            <h3 class="area-name">Crea nuova area</h3>
+          </div>
+        </div>
+
+        <div class="custom-areas-section" id="customAreasSection">
+          <h2 class="custom-areas-title">Aree personalizzate</h2>
+          <div class="custom-areas-grid" id="customAreasGrid">
+            <div class="empty-state" id="emptyState">
+              <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                <line x1="12" y1="8" x2="12" y2="16"/>
+                <line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>
+              <p>Nessuna area creata</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Area detail view (hidden by default) -->
+        <div class="area-detail" id="areaDetail" style="display:none;">
+          <button class="back-btn" id="backToAreas">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Torna alle aree
+          </button>
+          <h2 class="area-detail-title" id="areaDetailTitle"></h2>
+          <div class="area-detail-content">
+            <p class="area-detail-placeholder">La configurazione di quest'area sarà disponibile prossimamente.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Prenotazioni -->
+      <section class="section" id="section-prenotazioni" style="display:none;">
+        <div class="coming-soon">
+          <svg class="coming-soon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <h2>Prenotazioni</h2>
+          <p>Questa sezione sarà disponibile prossimamente.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal for creating new area -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h3>Crea nuova area</h3>
+        <button class="modal-close" id="modalClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label" for="areaNameInput">Nome dell'area</label>
+        <input type="text" id="areaNameInput" class="modal-input" placeholder="Es. Bar, Pizzeria, Giardino...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="modalCancel">Annulla</button>
+        <button class="btn btn--primary" id="modalConfirm">Crea area</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
