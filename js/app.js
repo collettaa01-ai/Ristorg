@@ -1,9 +1,14 @@
 // ═══════════════════════════════════
+// Firestore reference
+// ═══════════════════════════════════
+const db = window.db;
+
+// ═══════════════════════════════════
 // State
 // ═══════════════════════════════════
-let customAreas = JSON.parse(localStorage.getItem('ristorg_areas') || '[]');
-let operators = JSON.parse(localStorage.getItem('ristorg_operators') || '{}');
-let shifts = JSON.parse(localStorage.getItem('ristorg_shifts') || '{}');
+let customAreas = [];
+let operators = {};
+let shifts = {};
 let currentArea = null;
 let editingOperatorId = null;
 let deletingOperatorId = null;
@@ -12,9 +17,63 @@ let copyingShift = null;
 let selectedDate = new Date();
 let calendarView = 'day';
 
-function saveAreas() { localStorage.setItem('ristorg_areas', JSON.stringify(customAreas)); }
-function saveOperators() { localStorage.setItem('ristorg_operators', JSON.stringify(operators)); }
-function saveShifts() { localStorage.setItem('ristorg_shifts', JSON.stringify(shifts)); }
+// ═══════════════════════════════════
+// Firestore save helpers
+// ═══════════════════════════════════
+function saveAreas() {
+  db.collection('config').doc('areas').set({ data: customAreas });
+}
+function saveOperators() {
+  db.collection('config').doc('operators').set({ data: operators });
+}
+function saveShifts() {
+  db.collection('config').doc('shifts').set({ data: shifts });
+}
+
+// ═══════════════════════════════════
+// Firestore real-time listeners
+// ═══════════════════════════════════
+function initRealtimeSync() {
+  // Areas
+  db.collection('config').doc('areas').onSnapshot(doc => {
+    if (doc.exists && doc.data().data) {
+      customAreas = doc.data().data;
+    } else {
+      customAreas = [];
+    }
+    renderCustomAreas();
+  });
+
+  // Operators
+  db.collection('config').doc('operators').onSnapshot(doc => {
+    if (doc.exists && doc.data().data) {
+      operators = doc.data().data;
+    } else {
+      operators = {};
+    }
+    if (currentArea) {
+      const activeTab = document.querySelector('.sub-tab.active');
+      if (activeTab && activeTab.dataset.tab === 'operatori') renderOperators();
+      if (activeTab && activeTab.dataset.tab === 'turni') renderShifts();
+    }
+  });
+
+  // Shifts
+  db.collection('config').doc('shifts').onSnapshot(doc => {
+    if (doc.exists && doc.data().data) {
+      shifts = doc.data().data;
+    } else {
+      shifts = {};
+    }
+    if (currentArea) {
+      const activeTab = document.querySelector('.sub-tab.active');
+      if (activeTab && activeTab.dataset.tab === 'turni') {
+        renderCalendar();
+        renderShifts();
+      }
+    }
+  });
+}
 
 // ═══════════════════════════════════
 // Date helpers
@@ -153,12 +212,13 @@ function createArea() {
     return;
   }
   customAreas.push({ name, id: Date.now().toString() });
-  saveAreas(); renderCustomAreas(); closeAreaModal();
+  saveAreas();
+  closeAreaModal();
 }
 
 function deleteArea(id) {
   customAreas = customAreas.filter(a => a.id !== id);
-  saveAreas(); renderCustomAreas();
+  saveAreas();
 }
 
 function renderCustomAreas() {
@@ -176,7 +236,6 @@ function renderCustomAreas() {
     customAreasGrid.appendChild(card);
   });
 }
-renderCustomAreas();
 
 // ═══════════════════════════════════
 // Operators CRUD
@@ -220,7 +279,8 @@ function saveOperator() {
   } else {
     operators[currentArea].push({ id: Date.now().toString(), name, role: opRole.value.trim(), contract: opContract.value.trim() });
   }
-  saveOperators(); renderOperators(); closeOperatorModal();
+  saveOperators();
+  closeOperatorModal();
 }
 
 // Delete confirmation
@@ -240,7 +300,7 @@ deleteOverlay.addEventListener('click', (e) => { if (e.target === deleteOverlay)
 document.getElementById('deleteConfirmOk').addEventListener('click', () => {
   if (deletingOperatorId && operators[currentArea]) {
     operators[currentArea] = operators[currentArea].filter(o => o.id !== deletingOperatorId);
-    saveOperators(); renderOperators();
+    saveOperators();
   }
   closeDeleteConfirm();
 });
@@ -327,7 +387,6 @@ function renderCalendar() {
   // Month view
   const year = selectedDate.getFullYear(), month = selectedDate.getMonth();
   const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
   const startOffset = (firstDay.getDay() + 6) % 7;
 
   let html = '<div class="calendar-month">';
@@ -407,7 +466,8 @@ document.getElementById('shiftModalConfirm').addEventListener('click', () => {
       assignments: []
     });
   }
-  saveShifts(); renderShifts(); renderCalendar(); closeShiftModal();
+  saveShifts();
+  closeShiftModal();
 });
 
 function deleteShift(shiftId) {
@@ -415,7 +475,7 @@ function deleteShift(shiftId) {
   if (shifts[currentArea] && shifts[currentArea][dk]) {
     shifts[currentArea][dk] = shifts[currentArea][dk].filter(s => s.id !== shiftId);
     if (shifts[currentArea][dk].length === 0) delete shifts[currentArea][dk];
-    saveShifts(); renderShifts(); renderCalendar();
+    saveShifts();
   }
 }
 
@@ -436,7 +496,7 @@ document.getElementById('copyShiftConfirm').addEventListener('click', () => {
   copy.id = Date.now().toString();
   copy.assignments.forEach(a => { a.id = Date.now().toString() + Math.random().toString(36).slice(2,6); });
   shifts[currentArea][targetDate].push(copy);
-  saveShifts(); renderCalendar();
+  saveShifts();
   copyOverlay.classList.remove('visible'); copyingShift = null;
 });
 
@@ -510,7 +570,6 @@ function renderShifts() {
           const opData = areaOps.find(o => o.id === a.operatorId);
           const opDisplayName = opData ? opData.name : '(rimosso)';
 
-          // Check if operator is currently working
           let isWorking = false;
           if (isActive && a.inizio) {
             const nowMins = now.getHours() * 60 + now.getMinutes();
@@ -552,7 +611,6 @@ function renderShifts() {
       <button class="shift-footer-btn copy-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copia turno</button>
       <button class="shift-footer-btn shift-footer-btn--danger del-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Elimina</button>`;
 
-    // Add operator button
     footer.querySelector('.add-op-btn').addEventListener('click', () => openAddOperatorRow(shift, card));
     footer.querySelector('.edit-shift-btn').addEventListener('click', () => openShiftModal(shift));
     footer.querySelector('.copy-shift-btn').addEventListener('click', () => {
@@ -568,7 +626,7 @@ function renderShifts() {
     card.querySelectorAll('.remove-assign-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         shift.assignments = shift.assignments.filter(a => a.id !== btn.dataset.aid);
-        saveShifts(); renderShifts(); renderCalendar();
+        saveShifts();
       });
     });
 
@@ -590,7 +648,6 @@ function getShiftEmoji(name) {
 // Turni: Add operator to shift (inline)
 // ═══════════════════════════════════
 function openAddOperatorRow(shift, card) {
-  // Remove any existing add-row
   const existing = card.querySelector('.add-op-inline');
   if (existing) { existing.remove(); return; }
 
@@ -613,7 +670,6 @@ function openAddOperatorRow(shift, card) {
     <button class="btn btn--primary inline-confirm" style="padding:7px 14px;font-size:.82rem">Aggiungi</button>
     <button class="btn btn--secondary inline-cancel" style="padding:7px 14px;font-size:.82rem">Annulla</button>`;
 
-  // Auto-fill mansione from selected operator
   const select = row.querySelector('.inline-op-select');
   const mansioneInput = row.querySelector('.inline-mansione');
   const inizioInput = row.querySelector('.inline-inizio');
@@ -626,7 +682,6 @@ function openAddOperatorRow(shift, card) {
   autoFillMansione();
   select.addEventListener('change', autoFillMansione);
 
-  // Pre-fill times from shift
   if (shift.startTime) inizioInput.value = shift.startTime;
   if (shift.endTime) fineInput.value = shift.endTime;
 
@@ -640,12 +695,11 @@ function openAddOperatorRow(shift, card) {
       inizio: inizioInput.value,
       fine: fineInput.value
     });
-    saveShifts(); renderShifts(); renderCalendar();
+    saveShifts();
   });
 
   row.querySelector('.inline-cancel').addEventListener('click', () => row.remove());
 
-  // Insert before footer
   const footer = card.querySelector('.shift-card-footer');
   card.insertBefore(row, footer);
 }
@@ -663,3 +717,8 @@ document.addEventListener('keydown', (e) => {
     copyingShift = null;
   }
 });
+
+// ═══════════════════════════════════
+// Initialize: start Firestore listeners
+// ═══════════════════════════════════
+initRealtimeSync();

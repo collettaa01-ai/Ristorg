@@ -327,6 +327,21 @@
     </div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAJr-SOXdvWp8PIDZ3R0dl7eXRqq548KII",
+      authDomain: "ristorg-a33d6.firebaseapp.com",
+      projectId: "ristorg-a33d6",
+      storageBucket: "ristorg-a33d6.firebasestorage.app",
+      messagingSenderId: "599770239149",
+      appId: "1:599770239149:web:5cc2f085fe39a795ac7624",
+      measurementId: "G-3SS8DYVDPN"
+    };
+    firebase.initializeApp(firebaseConfig);
+    window.db = firebase.firestore();
+  </script>
   <script src="js/app.js"></script>
 </body>
 </html>
