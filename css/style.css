@@ -160,6 +160,33 @@ body {
   font-size: 1.15rem;
   font-weight: 600;
   letter-spacing: -.2px;
+  flex: 1;
+}
+
+.sync-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+  animation: pulse-dot 1.5s ease infinite;
+}
+
+.sync-label {
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 /* ── Page content ── */
@@ -175,6 +202,11 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
 }
 
 /* ── Areas grid ── */

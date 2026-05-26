@@ -33,7 +33,37 @@ function saveShifts() {
 // ═══════════════════════════════════
 // Firestore real-time listeners
 // ═══════════════════════════════════
+function refreshCurrentView() {
+  // Re-render whatever the user is currently looking at
+  renderCustomAreas();
+  if (currentArea) {
+    const activeTab = document.querySelector('.sub-tab.active');
+    if (!activeTab) return;
+    if (activeTab.dataset.tab === 'operatori') renderOperators();
+    if (activeTab.dataset.tab === 'turni') { renderCalendar(); renderShifts(); }
+  }
+}
+
+function setSyncStatus(connected) {
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncLabel');
+  if (!dot || !label) return;
+  if (connected) {
+    dot.style.background = '#16a34a';
+    label.textContent = 'Sincronizzato';
+  } else {
+    dot.style.background = '#dc2626';
+    label.textContent = 'Non connesso';
+  }
+}
+
 function initRealtimeSync() {
+  let areasReady = false, opsReady = false, shiftsReady = false;
+
+  function checkReady() {
+    if (areasReady && opsReady && shiftsReady) setSyncStatus(true);
+  }
+
   // Areas
   db.collection('config').doc('areas').onSnapshot(doc => {
     if (doc.exists && doc.data().data) {
@@ -41,8 +71,9 @@ function initRealtimeSync() {
     } else {
       customAreas = [];
     }
-    renderCustomAreas();
-  });
+    areasReady = true; checkReady();
+    refreshCurrentView();
+  }, err => { console.error('Areas sync error:', err); setSyncStatus(false); });
 
   // Operators
   db.collection('config').doc('operators').onSnapshot(doc => {
@@ -51,12 +82,9 @@ function initRealtimeSync() {
     } else {
       operators = {};
     }
-    if (currentArea) {
-      const activeTab = document.querySelector('.sub-tab.active');
-      if (activeTab && activeTab.dataset.tab === 'operatori') renderOperators();
-      if (activeTab && activeTab.dataset.tab === 'turni') renderShifts();
-    }
-  });
+    opsReady = true; checkReady();
+    refreshCurrentView();
+  }, err => { console.error('Operators sync error:', err); setSyncStatus(false); });
 
   // Shifts
   db.collection('config').doc('shifts').onSnapshot(doc => {
@@ -65,6 +93,7 @@ function initRealtimeSync() {
     } else {
       shifts = {};
     }
+    shiftsReady = true; checkReady();
     if (currentArea) {
       const activeTab = document.querySelector('.sub-tab.active');
       if (activeTab && activeTab.dataset.tab === 'turni') {
