@@ -784,16 +784,42 @@ document.getElementById('orariDatePrev').addEventListener('click', () => {
 });
 
 document.getElementById('orariDateNext').addEventListener('click', () => {
+  if (!canOrariGoForward()) return;
   if (orariView === 'day') orariDate.setDate(orariDate.getDate() + 1);
   else if (orariView === 'week') orariDate.setDate(orariDate.getDate() + 7);
   else orariDate.setMonth(orariDate.getMonth() + 1);
+  // Clamp to today if overshooting
+  const today = new Date();
+  if (dateKey(orariDate) > dateKey(today)) orariDate = new Date(today);
   renderOrariCalendar();
   renderOrari();
 });
 
-document.getElementById('centesimalToggle').addEventListener('change', (e) => {
-  centesimalMode = e.target.checked;
-  renderOrari();
+function canOrariGoForward() {
+  const today = new Date();
+  if (orariView === 'day') return dateKey(orariDate) < dateKey(today);
+  if (orariView === 'week') {
+    const curWeek = getWeekStart(orariDate);
+    const todayWeek = getWeekStart(today);
+    return dateKey(curWeek) < dateKey(todayWeek);
+  }
+  // month: can go forward if not already at current month
+  return orariDate.getFullYear() < today.getFullYear() ||
+    (orariDate.getFullYear() === today.getFullYear() && orariDate.getMonth() < today.getMonth());
+}
+
+function updateOrariNav() {
+  const nextBtn = document.getElementById('orariDateNext');
+  if (canOrariGoForward()) {
+    nextBtn.classList.remove('disabled');
+  } else {
+    nextBtn.classList.add('disabled');
+  }
+}
+
+// Close ore-dropdown on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.ore-dropdown').forEach(d => d.style.display = 'none');
 });
 
 // ═══════════════════════════════════
@@ -803,6 +829,9 @@ function renderOrariCalendar() {
   const label = document.getElementById('orariDateLabel');
   const area = document.getElementById('orariCalendarArea');
   label.textContent = formatDateLabel(orariDate, orariView);
+  updateOrariNav();
+
+  const todayKey = dateKey(new Date());
 
   if (orariView === 'day') {
     area.innerHTML = '';
@@ -818,12 +847,15 @@ function renderOrariCalendar() {
       const dk = dateKey(d);
       const today = sameDay(d, new Date());
       const sel = sameDay(d, orariDate);
+      const isFuture = dk > todayKey;
       const hasShifts = (shifts[currentArea] && shifts[currentArea][dk] && shifts[currentArea][dk].length > 0);
-      html += '<div class="cal-day' + (today ? ' today' : '') + (sel ? ' selected' : '') + '" data-date="' + dk + '"><div style="font-size:.72rem;color:inherit;opacity:.7;margin-bottom:2px">' + DAYS_SHORT[d.getDay()] + '</div>' + d.getDate() + (hasShifts ? '<span class="shift-dot"></span>' : '') + '</div>';
+      html += '<div class="cal-day' + (today ? ' today' : '') + (sel ? ' selected' : '') + (isFuture ? ' future' : '') + '" data-date="' + dk + '">' +
+        '<div style="font-size:.72rem;color:inherit;opacity:.7;margin-bottom:2px">' + DAYS_SHORT[d.getDay()] + '</div>' +
+        d.getDate() + (hasShifts && !isFuture ? '<span class="shift-dot"></span>' : '') + '</div>';
     }
     html += '</div>';
     area.innerHTML = html;
-    area.querySelectorAll('.cal-day').forEach(el => {
+    area.querySelectorAll('.cal-day:not(.future)').forEach(el => {
       el.addEventListener('click', () => {
         const parts = el.dataset.date.split('-');
         orariDate = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -852,12 +884,14 @@ function renderOrariCalendar() {
     const isOther = d.getMonth() !== month;
     const today = sameDay(d, new Date());
     const sel = sameDay(d, orariDate);
+    const isFuture = dk > todayKey;
     const hasShifts = (shifts[currentArea] && shifts[currentArea][dk] && shifts[currentArea][dk].length > 0);
-    html += '<div class="cal-day' + (isOther ? ' other-month' : '') + (today ? ' today' : '') + (sel ? ' selected' : '') + '" data-date="' + dk + '">' + d.getDate() + (hasShifts ? '<span class="shift-dot"></span>' : '') + '</div>';
+    html += '<div class="cal-day' + (isOther ? ' other-month' : '') + (today ? ' today' : '') + (sel ? ' selected' : '') + (isFuture ? ' future' : '') + '" data-date="' + dk + '">' +
+      d.getDate() + (hasShifts && !isFuture ? '<span class="shift-dot"></span>' : '') + '</div>';
   }
   html += '</div>';
   area.innerHTML = html;
-  area.querySelectorAll('.cal-day').forEach(el => {
+  area.querySelectorAll('.cal-day:not(.future)').forEach(el => {
     el.addEventListener('click', () => {
       const parts = el.dataset.date.split('-');
       orariDate = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -925,7 +959,16 @@ function renderOrari() {
     table.className = 'attendance-table';
 
     const thead = document.createElement('thead');
-    thead.innerHTML = '<tr><th>Operatore</th><th>Orario inizio</th><th>Orario fine</th><th>Ore lavorate</th><th>Mansione</th></tr>';
+    thead.innerHTML = '<tr><th>Operatore</th><th>Orario inizio</th><th>Orario fine</th>' +
+      '<th><div class="ore-header-wrap"><span>Ore lavorate</span>' +
+      '<button class="ore-dropdown-btn" type="button">' +
+      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+      '</button>' +
+      '<div class="ore-dropdown" style="display:none">' +
+      '<div class="ore-dropdown-item' + (!centesimalMode ? ' active' : '') + '" data-mode="traditional">Ore tradizionali</div>' +
+      '<div class="ore-dropdown-item' + (centesimalMode ? ' active' : '') + '" data-mode="centesimal">Ore in centesimi</div>' +
+      '</div></div></th>' +
+      '<th>Mansione</th></tr>';
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
@@ -965,6 +1008,25 @@ function renderOrari() {
     container.innerHTML = '<div class="orari-empty"><svg class="orari-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>Nessun operatore assegnato ai turni di oggi</p></div>';
     return;
   }
+
+  // Attach dropdown toggle for "Ore lavorate"
+  container.querySelectorAll('.ore-dropdown-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Close all other dropdowns first
+      document.querySelectorAll('.ore-dropdown').forEach(d => d.style.display = 'none');
+      const dropdown = btn.nextElementSibling;
+      dropdown.style.display = '';
+    });
+  });
+
+  container.querySelectorAll('.ore-dropdown-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      centesimalMode = item.dataset.mode === 'centesimal';
+      renderOrari();
+    });
+  });
 
   // Attach event listeners to time inputs
   container.querySelectorAll('.attendance-time-input').forEach(input => {
