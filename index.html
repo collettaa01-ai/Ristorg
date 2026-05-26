@@ -110,6 +110,7 @@
 
           <nav class="sub-tabs" id="subTabs">
             <button class="sub-tab active" data-tab="operatori">Operatori</button>
+            <button class="sub-tab" data-tab="turni">Turni</button>
             <button class="sub-tab" data-tab="orari">Orari</button>
           </nav>
 
@@ -133,6 +134,40 @@
                 <p>Nessun operatore registrato</p>
               </div>
             </div>
+          </div>
+
+          <!-- Tab: Turni -->
+          <div class="tab-panel" id="tab-turni" style="display:none;">
+            <div class="turni-toolbar">
+              <div class="view-selector">
+                <button class="view-btn active" data-view="day">Giorno</button>
+                <button class="view-btn" data-view="week">Settimana</button>
+                <button class="view-btn" data-view="month">Mese</button>
+              </div>
+              <div class="date-nav">
+                <button class="date-nav-arrow" id="datePrev">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <span class="date-nav-label" id="dateLabel"></span>
+                <button class="date-nav-arrow" id="dateNext">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div id="calendarArea"></div>
+            <div class="turni-actions">
+              <button class="btn btn--primary" id="createShiftBtn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Crea turno
+              </button>
+            </div>
+            <div id="shiftsArea"></div>
           </div>
 
           <!-- Tab: Orari -->
@@ -184,6 +219,61 @@
       <div class="modal-footer">
         <button class="btn btn--secondary" id="modalCancel">Annulla</button>
         <button class="btn btn--primary" id="modalConfirm">Crea area</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for creating/editing shift -->
+  <div class="modal-overlay" id="shiftModalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="shiftModalTitle">Crea turno</h3>
+        <button class="modal-close" id="shiftModalClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label" for="shiftName">Nome turno</label>
+        <input type="text" id="shiftName" class="modal-input" placeholder="Es. Turno Pranzo, Turno Cena...">
+        <div class="time-row mt-16">
+          <div class="time-field">
+            <label class="modal-label" for="shiftStart">Inizio</label>
+            <input type="time" id="shiftStart" class="modal-input">
+          </div>
+          <div class="time-field">
+            <label class="modal-label" for="shiftEnd">Fine</label>
+            <input type="time" id="shiftEnd" class="modal-input">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="shiftModalCancel">Annulla</button>
+        <button class="btn btn--primary" id="shiftModalConfirm">Crea turno</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for copying shift -->
+  <div class="modal-overlay" id="copyShiftOverlay">
+    <div class="modal modal--small">
+      <div class="modal-header">
+        <h3>Copia turno</h3>
+        <button class="modal-close" id="copyShiftClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label" for="copyTargetDate">Copia su data</label>
+        <input type="date" id="copyTargetDate" class="modal-input">
+        <p class="copy-hint mt-16">Il turno con tutti gli operatori assegnati verranno copiati nella data selezionata.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="copyShiftCancel">Annulla</button>
+        <button class="btn btn--primary" id="copyShiftConfirm">Copia</button>
       </div>
     </div>
   </div>

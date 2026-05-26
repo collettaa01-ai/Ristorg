@@ -691,6 +691,443 @@ body {
   background: var(--accent-hover);
 }
 
+/* ── Turni toolbar ── */
+.turni-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.view-selector {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.view-btn {
+  padding: 8px 18px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  border-right: 1px solid var(--border);
+}
+
+.view-btn:last-child {
+  border-right: none;
+}
+
+.view-btn:hover {
+  background: var(--bg);
+}
+
+.view-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.date-nav-arrow {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.date-nav-arrow:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.date-nav-label {
+  font-size: .95rem;
+  font-weight: 600;
+  min-width: 200px;
+  text-align: center;
+}
+
+.turni-actions {
+  margin-bottom: 20px;
+}
+
+.turni-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Calendar area ── */
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.cal-day-header {
+  text-align: center;
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-secondary);
+  padding: 6px 0;
+}
+
+.cal-day {
+  text-align: center;
+  padding: 10px 4px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: .88rem;
+  font-weight: 500;
+  transition: all var(--transition);
+  position: relative;
+  border: 1px solid transparent;
+  background: var(--surface);
+}
+
+.cal-day:hover {
+  border-color: var(--accent);
+}
+
+.cal-day.today {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.cal-day.selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+.cal-day.other-month {
+  opacity: .35;
+}
+
+.cal-day .shift-dot {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin: 4px auto 0;
+}
+
+.cal-day.selected .shift-dot {
+  background: #fff;
+}
+
+/* ── Month grid ── */
+.calendar-month {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+/* ── Shift cards ── */
+.shift-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: box-shadow var(--transition);
+}
+
+.shift-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.shift-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #f8faf8 0%, #fafaf5 100%);
+}
+
+.shift-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
+  font-size: .9rem;
+}
+
+.shift-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .85rem;
+  font-weight: 500;
+}
+
+.shift-status.active {
+  color: #16a34a;
+}
+
+.shift-status.inactive {
+  color: var(--text-secondary);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.green { background: #16a34a; }
+.status-dot.gray { background: #9ca3af; }
+
+/* ── Shift table ── */
+.shift-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+
+.shift-table thead th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.shift-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.shift-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.mansione-cell {
+  background: #f9fafb;
+  border-right: 2px solid var(--border);
+  min-width: 140px;
+}
+
+.mansione-name {
+  font-weight: 600;
+  font-size: .9rem;
+  margin-bottom: 4px;
+}
+
+.mansione-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .78rem;
+  color: #16a34a;
+}
+
+.operator-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.operator-cell .op-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #16a34a;
+  flex-shrink: 0;
+}
+
+.time-cell {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Shift empty state (no operators) ── */
+.shift-empty-ops {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: .9rem;
+}
+
+/* ── Shift card footer ── */
+.shift-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-wrap: wrap;
+}
+
+.shift-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.shift-footer-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.shift-footer-btn--danger:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+/* ── Operator dropdown ── */
+.op-dropdown-wrap {
+  position: relative;
+}
+
+.op-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  z-index: 50;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.op-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background var(--transition);
+  font-size: .88rem;
+}
+
+.op-dropdown-item:hover {
+  background: var(--accent-light);
+}
+
+.op-dropdown-item .op-dd-name {
+  font-weight: 500;
+}
+
+.op-dropdown-item .op-dd-role {
+  font-size: .8rem;
+  color: var(--text-secondary);
+}
+
+/* ── Add operator inline row ── */
+.add-op-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-light);
+}
+
+.add-op-row .modal-input {
+  padding: 7px 10px;
+  font-size: .85rem;
+}
+
+.add-op-row select {
+  padding: 7px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: .85rem;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* ── Time inputs row ── */
+.time-row {
+  display: flex;
+  gap: 16px;
+}
+
+.time-field {
+  flex: 1;
+}
+
+.time-field input[type="time"] {
+  width: 100%;
+}
+
+/* ── Copy hint ── */
+.copy-hint {
+  font-size: .82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── No shifts empty state ── */
+.turni-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.turni-empty-icon {
+  width: 48px;
+  height: 48px;
+  opacity: .35;
+  margin: 0 auto 12px;
+  display: block;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .sidebar {
