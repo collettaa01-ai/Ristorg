@@ -163,6 +163,7 @@
               </div>
             </div>
             <div id="calendarArea"></div>
+            <div id="weekActionsArea"></div>
             <div class="turni-actions">
               <button class="btn btn--primary" id="createShiftBtn">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -258,11 +259,11 @@
         <div class="time-row mt-16">
           <div class="time-field">
             <label class="modal-label" for="shiftStart">Inizio</label>
-            <input type="time" id="shiftStart" class="modal-input">
+            <input type="time" id="shiftStart" class="modal-input" step="900">
           </div>
           <div class="time-field">
             <label class="modal-label" for="shiftEnd">Fine</label>
-            <input type="time" id="shiftEnd" class="modal-input">
+            <input type="time" id="shiftEnd" class="modal-input" step="900">
           </div>
         </div>
       </div>
@@ -285,13 +286,38 @@
         </button>
       </div>
       <div class="modal-body">
-        <label class="modal-label" for="copyTargetDate">Copia su data</label>
-        <input type="date" id="copyTargetDate" class="modal-input">
-        <p class="copy-hint mt-16">Il turno con tutti gli operatori assegnati verranno copiati nella data selezionata.</p>
+        <label class="modal-label" for="copyStartDate">Da</label>
+        <input type="date" id="copyStartDate" class="modal-input">
+        <label class="modal-label mt-16" for="copyEndDate">A (opzionale)</label>
+        <input type="date" id="copyEndDate" class="modal-input">
+        <p class="copy-hint mt-16">Seleziona una data per copiare su un singolo giorno, oppure compila entrambi i campi per copiare su un periodo consecutivo.</p>
       </div>
       <div class="modal-footer">
         <button class="btn btn--secondary" id="copyShiftCancel">Annulla</button>
         <button class="btn btn--primary" id="copyShiftConfirm">Copia</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for copying week -->
+  <div class="modal-overlay" id="copyWeekOverlay">
+    <div class="modal modal--small">
+      <div class="modal-header">
+        <h3>Copia settimana</h3>
+        <button class="modal-close" id="copyWeekClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="modal-label" for="copyWeekTarget">Incolla a partire dal lunedi della settimana</label>
+        <input type="date" id="copyWeekTarget" class="modal-input">
+        <p class="copy-hint mt-16">Tutti i turni della settimana corrente verranno copiati nella settimana selezionata.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="copyWeekCancel">Annulla</button>
+        <button class="btn btn--primary" id="copyWeekConfirm">Incolla</button>
       </div>
     </div>
   </div>

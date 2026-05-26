@@ -20,6 +20,9 @@ let calendarView = 'day';
 let orariDate = new Date();
 let orariView = 'day';
 let centesimalMode = false;
+let pendingDeleteAction = null;
+let copiedWeekData = null;
+let dragState = { row: null, shiftId: null };
 
 // ═══════════════════════════════════
 // Firestore save helpers
@@ -347,16 +350,25 @@ const deleteText = document.getElementById('deleteConfirmText');
 
 function openDeleteConfirm(op) {
   deletingOperatorId = op.id;
-  deleteText.textContent = `Sei sicuro di voler eliminare l'operatore "${op.name}"?`;
+  pendingDeleteAction = null;
+  deleteText.textContent = "Sei sicuro di voler eliminare l'operatore \"" + op.name + "\"?";
   deleteOverlay.classList.add('visible');
 }
-function closeDeleteConfirm() { deleteOverlay.classList.remove('visible'); deletingOperatorId = null; }
+function openGenericDeleteConfirm(text, action) {
+  deletingOperatorId = null;
+  pendingDeleteAction = action;
+  deleteText.textContent = text;
+  deleteOverlay.classList.add('visible');
+}
+function closeDeleteConfirm() { deleteOverlay.classList.remove('visible'); deletingOperatorId = null; pendingDeleteAction = null; }
 
 document.getElementById('deleteConfirmClose').addEventListener('click', closeDeleteConfirm);
 document.getElementById('deleteConfirmCancel').addEventListener('click', closeDeleteConfirm);
 deleteOverlay.addEventListener('click', (e) => { if (e.target === deleteOverlay) closeDeleteConfirm(); });
 document.getElementById('deleteConfirmOk').addEventListener('click', () => {
-  if (deletingOperatorId && operators[currentArea]) {
+  if (pendingDeleteAction) {
+    pendingDeleteAction();
+  } else if (deletingOperatorId && operators[currentArea]) {
     operators[currentArea] = operators[currentArea].filter(o => o.id !== deletingOperatorId);
     saveOperators();
   }
@@ -546,14 +558,32 @@ document.getElementById('copyShiftCancel').addEventListener('click', () => { cop
 copyOverlay.addEventListener('click', (e) => { if (e.target === copyOverlay) { copyOverlay.classList.remove('visible'); copyingShift = null; }});
 
 document.getElementById('copyShiftConfirm').addEventListener('click', () => {
-  const targetDate = document.getElementById('copyTargetDate').value;
-  if (!targetDate || !copyingShift) return;
+  const startDate = document.getElementById('copyStartDate').value;
+  const endDate = document.getElementById('copyEndDate').value;
+  if (!startDate || !copyingShift) return;
   if (!shifts[currentArea]) shifts[currentArea] = {};
-  if (!shifts[currentArea][targetDate]) shifts[currentArea][targetDate] = [];
-  const copy = JSON.parse(JSON.stringify(copyingShift));
-  copy.id = Date.now().toString();
-  copy.assignments.forEach(a => { a.id = Date.now().toString() + Math.random().toString(36).slice(2,6); });
-  shifts[currentArea][targetDate].push(copy);
+
+  // Build list of target dates
+  const dates = [];
+  if (endDate && endDate >= startDate) {
+    let cur = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    while (cur <= end) {
+      dates.push(dateKey(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+  } else {
+    dates.push(startDate);
+  }
+
+  dates.forEach(dk => {
+    if (!shifts[currentArea][dk]) shifts[currentArea][dk] = [];
+    const copy = JSON.parse(JSON.stringify(copyingShift));
+    copy.id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+    copy.assignments.forEach(a => { a.id = Date.now().toString() + Math.random().toString(36).slice(2, 6); });
+    shifts[currentArea][dk].push(copy);
+  });
+
   saveShifts();
   copyOverlay.classList.remove('visible'); copyingShift = null;
 });
@@ -566,8 +596,11 @@ function renderShifts() {
   const dk = dateKey(selectedDate);
   const dayShifts = (shifts[currentArea] && shifts[currentArea][dk]) || [];
 
+  // Render week actions if in week view
+  renderWeekActions();
+
   if (dayShifts.length === 0) {
-    container.innerHTML = `<div class="turni-empty"><svg class="turni-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>Nessun turno per questa giornata</p></div>`;
+    container.innerHTML = '<div class="turni-empty"><svg class="turni-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>Nessun turno per questa giornata</p></div>';
     return;
   }
 
@@ -591,12 +624,12 @@ function renderShifts() {
     // Header
     const header = document.createElement('div');
     header.className = 'shift-card-header';
-    header.innerHTML = `
-      <div class="shift-badge">${getShiftEmoji(shift.name)} ${shift.name}</div>
-      <div class="shift-status ${isActive ? 'active' : 'inactive'}">
-        <span class="status-dot ${isActive ? 'green' : 'gray'}"></span>
-        ${isActive ? 'Attivo' : (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '')}
-      </div>`;
+    header.innerHTML =
+      '<div class="shift-badge">' + getShiftEmoji(shift.name, shift.startTime) + ' ' + shift.name + '</div>' +
+      '<div class="shift-status ' + (isActive ? 'active' : 'inactive') + '">' +
+      '<span class="status-dot ' + (isActive ? 'green' : 'gray') + '"></span>' +
+      (isActive ? 'Attivo' : (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '')) +
+      '</div>';
     card.appendChild(header);
 
     // Table / assignments
@@ -610,50 +643,69 @@ function renderShifts() {
       table.className = 'shift-table';
 
       const thead = document.createElement('thead');
-      thead.innerHTML = '<tr><th>MANSIONE</th><th>OPERATORI</th><th>INIZIO</th><th>FINE</th><th></th></tr>';
+      thead.innerHTML = '<tr><th></th><th>MANSIONE</th><th>OPERATORI</th><th>INIZIO</th><th>FINE</th><th></th></tr>';
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
 
-      // Group by mansione
-      const groups = {};
-      shift.assignments.forEach(a => {
-        if (!groups[a.mansione || 'Altro']) groups[a.mansione || 'Altro'] = [];
-        groups[a.mansione || 'Altro'].push(a);
-      });
+      shift.assignments.forEach((a, idx) => {
+        const tr = document.createElement('tr');
+        tr.draggable = true;
+        tr.dataset.assignIdx = idx;
+        tr.dataset.shiftId = shift.id;
 
-      Object.entries(groups).forEach(([mansione, assigns]) => {
-        assigns.forEach((a, idx) => {
-          const tr = document.createElement('tr');
-          const opData = areaOps.find(o => o.id === a.operatorId);
-          const opDisplayName = opData ? opData.name : '(rimosso)';
+        const opData = areaOps.find(o => o.id === a.operatorId);
+        const opDisplayName = opData ? opData.name : '(rimosso)';
 
-          let isWorking = false;
-          if (isActive && a.inizio) {
-            const nowMins = now.getHours() * 60 + now.getMinutes();
-            const aStart = parseInt(a.inizio.split(':')[0]) * 60 + parseInt(a.inizio.split(':')[1]);
-            const aEnd = a.fine ? parseInt(a.fine.split(':')[0]) * 60 + parseInt(a.fine.split(':')[1]) : 1440;
-            isWorking = nowMins >= aStart && nowMins <= aEnd;
-          }
+        let isWorking = false;
+        if (isActive && a.inizio) {
+          const nowMins = now.getHours() * 60 + now.getMinutes();
+          const aStart = parseInt(a.inizio.split(':')[0]) * 60 + parseInt(a.inizio.split(':')[1]);
+          const aEnd = a.fine ? parseInt(a.fine.split(':')[0]) * 60 + parseInt(a.fine.split(':')[1]) : 1440;
+          isWorking = nowMins >= aStart && nowMins <= aEnd;
+        }
 
-          if (idx === 0) {
-            const mansioneActive = assigns.some(as => {
-              if (!isActive || !as.inizio) return false;
-              const nm = now.getHours()*60+now.getMinutes();
-              const s = parseInt(as.inizio.split(':')[0])*60+parseInt(as.inizio.split(':')[1]);
-              const e = as.fine ? parseInt(as.fine.split(':')[0])*60+parseInt(as.fine.split(':')[1]) : 1440;
-              return nm >= s && nm <= e;
-            });
-            tr.innerHTML += `<td class="mansione-cell" rowspan="${assigns.length}"><div class="mansione-name">${mansione}</div>${mansioneActive ? '<div class="mansione-status"><span class="status-dot green"></span> sta lavorando</div>' : ''}</td>`;
-          }
+        tr.innerHTML =
+          '<td class="drag-handle-cell" title="Trascina per riordinare">⠿</td>' +
+          '<td class="mansione-cell"><div class="mansione-name">' + (a.mansione || 'Altro') + '</div></td>' +
+          '<td><div class="operator-cell"><span class="op-indicator" style="background:' + (isWorking ? '#16a34a' : '#d1d5db') + '"></span>' + opDisplayName + '</div></td>' +
+          '<td class="time-cell">' + (a.inizio || '—') + '</td>' +
+          '<td class="time-cell">' + (a.fine || '—') + '</td>' +
+          '<td><button class="icon-btn icon-btn--danger remove-assign-btn" data-aid="' + a.id + '" title="Rimuovi"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>';
 
-          tr.innerHTML += `
-            <td><div class="operator-cell"><span class="op-indicator" style="background:${isWorking ? '#16a34a' : '#d1d5db'}"></span>${opDisplayName}</div></td>
-            <td class="time-cell">${a.inizio || '—'}</td>
-            <td class="time-cell">${a.fine || '—'}</td>
-            <td><button class="icon-btn icon-btn--danger remove-assign-btn" data-aid="${a.id}" title="Rimuovi"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>`;
-          tbody.appendChild(tr);
+        // Drag events
+        tr.addEventListener('dragstart', (e) => {
+          dragState.row = tr;
+          dragState.shiftId = shift.id;
+          tr.classList.add('row-dragging');
+          e.dataTransfer.effectAllowed = 'move';
         });
+        tr.addEventListener('dragend', () => {
+          tr.classList.remove('row-dragging');
+          tbody.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+          dragState.row = null;
+          dragState.shiftId = null;
+        });
+        tr.addEventListener('dragover', (e) => {
+          if (dragState.shiftId !== shift.id) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          tbody.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+          tr.classList.add('drag-over');
+        });
+        tr.addEventListener('drop', (e) => {
+          e.preventDefault();
+          tr.classList.remove('drag-over');
+          if (!dragState.row || dragState.shiftId !== shift.id) return;
+          const fromIdx = parseInt(dragState.row.dataset.assignIdx);
+          const toIdx = parseInt(tr.dataset.assignIdx);
+          if (fromIdx === toIdx) return;
+          const item = shift.assignments.splice(fromIdx, 1)[0];
+          shift.assignments.splice(toIdx, 0, item);
+          saveShifts();
+        });
+
+        tbody.appendChild(tr);
       });
 
       table.appendChild(tbody);
@@ -663,20 +715,23 @@ function renderShifts() {
     // Footer
     const footer = document.createElement('div');
     footer.className = 'shift-card-footer';
-    footer.innerHTML = `
-      <button class="shift-footer-btn add-op-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi operatore</button>
-      <button class="shift-footer-btn edit-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>
-      <button class="shift-footer-btn copy-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copia turno</button>
-      <button class="shift-footer-btn shift-footer-btn--danger del-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Elimina</button>`;
+    footer.innerHTML =
+      '<button class="shift-footer-btn add-op-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Aggiungi operatore</button>' +
+      '<button class="shift-footer-btn edit-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Modifica</button>' +
+      '<button class="shift-footer-btn copy-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copia turno</button>' +
+      '<button class="shift-footer-btn shift-footer-btn--danger del-shift-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Elimina</button>';
 
     footer.querySelector('.add-op-btn').addEventListener('click', () => openAddOperatorRow(shift, card));
     footer.querySelector('.edit-shift-btn').addEventListener('click', () => openShiftModal(shift));
     footer.querySelector('.copy-shift-btn').addEventListener('click', () => {
       copyingShift = shift;
-      document.getElementById('copyTargetDate').value = '';
+      document.getElementById('copyStartDate').value = '';
+      document.getElementById('copyEndDate').value = '';
       copyOverlay.classList.add('visible');
     });
-    footer.querySelector('.del-shift-btn').addEventListener('click', () => deleteShift(shift.id));
+    footer.querySelector('.del-shift-btn').addEventListener('click', () => {
+      openGenericDeleteConfirm('Sei sicuro di voler eliminare il turno "' + shift.name + '"?', () => deleteShift(shift.id));
+    });
 
     card.appendChild(footer);
 
@@ -692,13 +747,27 @@ function renderShifts() {
   });
 }
 
-function getShiftEmoji(name) {
+function getShiftEmoji(name, startTime) {
   const n = name.toLowerCase();
-  if (n.includes('pranzo') || n.includes('mattina')) return '☀️';
-  if (n.includes('cena') || n.includes('sera')) return '🌙';
-  if (n.includes('notte')) return '🌃';
-  if (n.includes('aperitivo')) return '🍸';
+  // Name-based detection
+  if (n.includes('colazione')) return '☕';
   if (n.includes('brunch')) return '☕';
+  if (n.includes('pranzo') || n.includes('mattina')) return '☀️';
+  if (n.includes('aperitivo')) return '🍹';
+  if (n.includes('cena')) return '🌙';
+  if (n.includes('serata') || n.includes('discoteca') || n.includes('afterparty') || n.includes('after party')) return '🍸';
+  if (n.includes('notte')) return '🌃';
+  // Time-based fallback
+  if (startTime) {
+    const parts = startTime.split(':');
+    const mins = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    if (mins >= 360 && mins < 690) return '☕';       // 06:00-11:29 colazione
+    if (mins >= 690 && mins < 930) return '☀️';  // 11:30-15:29 pranzo
+    if (mins >= 930 && mins < 1140) return '🍹';      // 15:30-18:59 aperitivo
+    if (mins >= 1140 && mins < 1260) return '🌙';     // 19:00-20:59 cena
+    if (mins >= 1260) return '🍸';                     // 21:00+ serata
+    if (mins < 360) return '🍸';                       // 00:00-05:59 afterparty
+  }
   return '🕒';
 }
 
@@ -723,8 +792,8 @@ function openAddOperatorRow(shift, card) {
   row.innerHTML = `
     <select class="inline-op-select">${opOptions}</select>
     <input type="text" class="modal-input inline-mansione" placeholder="Mansione" style="max-width:140px">
-    <input type="time" class="modal-input inline-inizio" style="max-width:110px">
-    <input type="time" class="modal-input inline-fine" style="max-width:110px">
+    <input type="time" class="modal-input inline-inizio" style="max-width:110px" step="900">
+    <input type="time" class="modal-input inline-fine" style="max-width:110px" step="900">
     <button class="btn btn--primary inline-confirm" style="padding:7px 14px;font-size:.82rem">Aggiungi</button>
     <button class="btn btn--secondary inline-cancel" style="padding:7px 14px;font-size:.82rem">Annulla</button>`;
 
@@ -760,6 +829,66 @@ function openAddOperatorRow(shift, card) {
 
   const footer = card.querySelector('.shift-card-footer');
   card.insertBefore(row, footer);
+}
+
+// ═══════════════════════════════════
+// Turni: Week copy/paste
+// ═══════════════════════════════════
+const copyWeekOverlay = document.getElementById('copyWeekOverlay');
+document.getElementById('copyWeekClose').addEventListener('click', () => copyWeekOverlay.classList.remove('visible'));
+document.getElementById('copyWeekCancel').addEventListener('click', () => copyWeekOverlay.classList.remove('visible'));
+copyWeekOverlay.addEventListener('click', (e) => { if (e.target === copyWeekOverlay) copyWeekOverlay.classList.remove('visible'); });
+
+document.getElementById('copyWeekConfirm').addEventListener('click', () => {
+  const targetDateVal = document.getElementById('copyWeekTarget').value;
+  if (!targetDateVal || !copiedWeekData) return;
+  if (!shifts[currentArea]) shifts[currentArea] = {};
+
+  const targetStart = getWeekStart(new Date(targetDateVal + 'T00:00:00'));
+
+  for (let i = 0; i < 7; i++) {
+    const sourceShifts = copiedWeekData[i] || [];
+    if (sourceShifts.length === 0) continue;
+    const targetDay = new Date(targetStart);
+    targetDay.setDate(targetDay.getDate() + i);
+    const targetDk = dateKey(targetDay);
+    if (!shifts[currentArea][targetDk]) shifts[currentArea][targetDk] = [];
+    sourceShifts.forEach(s => {
+      const copy = JSON.parse(JSON.stringify(s));
+      copy.id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+      copy.assignments.forEach(a => { a.id = Date.now().toString() + Math.random().toString(36).slice(2, 6); });
+      shifts[currentArea][targetDk].push(copy);
+    });
+  }
+
+  saveShifts();
+  copyWeekOverlay.classList.remove('visible');
+});
+
+function renderWeekActions() {
+  const area = document.getElementById('weekActionsArea');
+  if (calendarView !== 'week') {
+    area.innerHTML = '';
+    return;
+  }
+
+  area.innerHTML = '<div class="week-actions">' +
+    '<button class="btn btn--primary" id="copyWeekBtn">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
+    ' Copia settimana</button></div>';
+
+  document.getElementById('copyWeekBtn').addEventListener('click', () => {
+    const ws = getWeekStart(selectedDate);
+    copiedWeekData = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ws);
+      d.setDate(d.getDate() + i);
+      const dk = dateKey(d);
+      copiedWeekData.push((shifts[currentArea] && shifts[currentArea][dk]) ? JSON.parse(JSON.stringify(shifts[currentArea][dk])) : []);
+    }
+    document.getElementById('copyWeekTarget').value = '';
+    copyWeekOverlay.classList.add('visible');
+  });
 }
 
 // ═══════════════════════════════════
@@ -951,7 +1080,7 @@ function renderOrari() {
     const header = document.createElement('div');
     header.className = 'orari-shift-header';
     const timeLabel = (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '');
-    header.innerHTML = '<span class="orari-shift-badge">' + getShiftEmoji(shift.name) + ' ' + shift.name + '</span>' + (timeLabel ? '<span class="orari-shift-time">' + timeLabel + '</span>' : '');
+    header.innerHTML = '<span class="orari-shift-badge">' + getShiftEmoji(shift.name, shift.startTime) + ' ' + shift.name + '</span>' + (timeLabel ? '<span class="orari-shift-time">' + timeLabel + '</span>' : '');
     group.appendChild(header);
 
     // Table
@@ -990,8 +1119,8 @@ function renderOrari() {
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td><div class="attendance-op-name"><span class="op-indicator"></span>' + opName + '</div></td>' +
-        '<td><input type="time" class="attendance-time-input" data-field="inizio" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.inizio + '"></td>' +
-        '<td><input type="time" class="attendance-time-input" data-field="fine" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.fine + '"></td>' +
+        '<td><input type="time" class="attendance-time-input" data-field="inizio" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.inizio + '" step="900"></td>' +
+        '<td><input type="time" class="attendance-time-input" data-field="fine" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.fine + '" step="900"></td>' +
         '<td><span class="' + hoursClass + '">' + hoursText + '</span></td>' +
         '<td><span class="attendance-mansione">' + (assign.mansione || '--') + '</span></td>';
 
@@ -1068,6 +1197,7 @@ document.addEventListener('keydown', (e) => {
     closeShiftModal();
     copyOverlay.classList.remove('visible');
     copyingShift = null;
+    copyWeekOverlay.classList.remove('visible');
   }
 });
 

@@ -1160,6 +1160,49 @@ body {
   display: block;
 }
 
+/* ── Shift table: drag handle ── */
+.drag-handle-cell {
+  width: 28px;
+  text-align: center;
+  cursor: grab;
+  color: var(--text-secondary);
+  opacity: .4;
+  transition: opacity var(--transition);
+  user-select: none;
+}
+
+.drag-handle-cell:active {
+  cursor: grabbing;
+}
+
+.shift-table tbody tr:hover .drag-handle-cell {
+  opacity: .8;
+}
+
+.shift-table tbody tr.row-dragging {
+  opacity: .4;
+  background: var(--accent-light);
+}
+
+.shift-table tbody tr.drag-over {
+  border-top: 2px solid var(--accent);
+}
+
+/* ── Week actions (copy week) ── */
+.week-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.week-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .85rem;
+}
+
 /* ── Orari toolbar ── */
 .orari-toolbar {
   display: flex;
