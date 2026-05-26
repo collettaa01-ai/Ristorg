@@ -176,14 +176,34 @@
 
           <!-- Tab: Orari -->
           <div class="tab-panel" id="tab-orari" style="display:none;">
-            <div class="coming-soon coming-soon--small">
-              <svg class="coming-soon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-              <h2>Orari</h2>
-              <p>Questa sotto-sezione sarà disponibile prossimamente.</p>
+            <div class="orari-toolbar">
+              <div class="view-selector">
+                <button class="orari-view-btn active" data-oview="day">Giorno</button>
+                <button class="orari-view-btn" data-oview="week">Settimana</button>
+                <button class="orari-view-btn" data-oview="month">Mese</button>
+              </div>
+              <div class="date-nav">
+                <button class="date-nav-arrow" id="orariDatePrev">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"/>
+                  </svg>
+                </button>
+                <span class="date-nav-label" id="orariDateLabel"></span>
+                <button class="date-nav-arrow" id="orariDateNext">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
             </div>
+            <div id="orariCalendarArea"></div>
+            <div class="orari-options">
+              <label class="centesimal-toggle">
+                <input type="checkbox" id="centesimalToggle">
+                <span>Ore in centesimi</span>
+              </label>
+            </div>
+            <div id="orariTableArea"></div>
           </div>
         </div>
       </section>

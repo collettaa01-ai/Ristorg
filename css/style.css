@@ -1160,6 +1160,205 @@ body {
   display: block;
 }
 
+/* ── Orari toolbar ── */
+.orari-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* ── Orari view buttons ── */
+.orari-view-btn {
+  padding: 8px 18px;
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  border-right: 1px solid var(--border);
+}
+
+.orari-view-btn:last-child {
+  border-right: none;
+}
+
+.orari-view-btn:hover {
+  background: var(--bg);
+}
+
+.orari-view-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Orari options (centesimal toggle) ── */
+.orari-options {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.centesimal-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.centesimal-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── Orari attendance table ── */
+.orari-shift-group {
+  margin-bottom: 24px;
+}
+
+.orari-shift-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #f8faf8 0%, #fafaf5 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.orari-shift-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
+  font-size: .88rem;
+}
+
+.orari-shift-time {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+}
+
+.attendance-table thead th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.attendance-table tbody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.attendance-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.attendance-table tbody tr:hover {
+  background: #fafbff;
+}
+
+.attendance-op-name {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attendance-op-name .op-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+}
+
+.attendance-time-input {
+  width: 110px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: .88rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color var(--transition);
+  font-variant-numeric: tabular-nums;
+}
+
+.attendance-time-input:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
+
+.attendance-hours {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  min-width: 70px;
+}
+
+.attendance-hours.empty {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.attendance-mansione {
+  color: var(--text-secondary);
+  font-size: .85rem;
+}
+
+/* ── Orari empty state ── */
+.orari-empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.orari-empty-icon {
+  width: 48px;
+  height: 48px;
+  opacity: .35;
+  margin: 0 auto 12px;
+  display: block;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .sidebar {

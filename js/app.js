@@ -9,6 +9,7 @@ const db = window.db;
 let customAreas = [];
 let operators = {};
 let shifts = {};
+let attendance = {};
 let currentArea = null;
 let editingOperatorId = null;
 let deletingOperatorId = null;
@@ -16,6 +17,9 @@ let editingShiftId = null;
 let copyingShift = null;
 let selectedDate = new Date();
 let calendarView = 'day';
+let orariDate = new Date();
+let orariView = 'day';
+let centesimalMode = false;
 
 // ═══════════════════════════════════
 // Firestore save helpers
@@ -29,6 +33,9 @@ function saveOperators() {
 function saveShifts() {
   db.collection('config').doc('shifts').set({ data: shifts });
 }
+function saveAttendance() {
+  db.collection('config').doc('attendance').set({ data: attendance });
+}
 
 // ═══════════════════════════════════
 // Firestore real-time listeners
@@ -41,6 +48,7 @@ function refreshCurrentView() {
     if (!activeTab) return;
     if (activeTab.dataset.tab === 'operatori') renderOperators();
     if (activeTab.dataset.tab === 'turni') { renderCalendar(); renderShifts(); }
+    if (activeTab.dataset.tab === 'orari') { renderOrariCalendar(); renderOrari(); }
   }
 }
 
@@ -58,10 +66,10 @@ function setSyncStatus(connected) {
 }
 
 function initRealtimeSync() {
-  let areasReady = false, opsReady = false, shiftsReady = false;
+  let areasReady = false, opsReady = false, shiftsReady = false, attReady = false;
 
   function checkReady() {
-    if (areasReady && opsReady && shiftsReady) setSyncStatus(true);
+    if (areasReady && opsReady && shiftsReady && attReady) setSyncStatus(true);
   }
 
   // Areas
@@ -100,8 +108,28 @@ function initRealtimeSync() {
         renderCalendar();
         renderShifts();
       }
+      if (activeTab && activeTab.dataset.tab === 'orari') {
+        renderOrariCalendar();
+        renderOrari();
+      }
     }
   });
+
+  // Attendance
+  db.collection('config').doc('attendance').onSnapshot(doc => {
+    if (doc.exists && doc.data().data) {
+      attendance = doc.data().data;
+    } else {
+      attendance = {};
+    }
+    attReady = true; checkReady();
+    if (currentArea) {
+      const activeTab = document.querySelector('.sub-tab.active');
+      if (activeTab && activeTab.dataset.tab === 'orari') {
+        renderOrari();
+      }
+    }
+  }, err => { console.error('Attendance sync error:', err); setSyncStatus(false); });
 }
 
 // ═══════════════════════════════════
@@ -213,6 +241,7 @@ function switchSubTab(tab) {
   document.getElementById(`tab-${tab}`).style.display = '';
   if (tab === 'turni') { renderCalendar(); renderShifts(); }
   if (tab === 'operatori') renderOperators();
+  if (tab === 'orari') { renderOrariCalendar(); renderOrari(); }
 }
 
 document.querySelectorAll('.sub-tab').forEach(tab => {
@@ -731,6 +760,239 @@ function openAddOperatorRow(shift, card) {
 
   const footer = card.querySelector('.shift-card-footer');
   card.insertBefore(row, footer);
+}
+
+// ═══════════════════════════════════
+// Orari: View & Date navigation
+// ═══════════════════════════════════
+document.querySelectorAll('.orari-view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.orari-view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    orariView = btn.dataset.oview;
+    renderOrariCalendar();
+    renderOrari();
+  });
+});
+
+document.getElementById('orariDatePrev').addEventListener('click', () => {
+  if (orariView === 'day') orariDate.setDate(orariDate.getDate() - 1);
+  else if (orariView === 'week') orariDate.setDate(orariDate.getDate() - 7);
+  else orariDate.setMonth(orariDate.getMonth() - 1);
+  renderOrariCalendar();
+  renderOrari();
+});
+
+document.getElementById('orariDateNext').addEventListener('click', () => {
+  if (orariView === 'day') orariDate.setDate(orariDate.getDate() + 1);
+  else if (orariView === 'week') orariDate.setDate(orariDate.getDate() + 7);
+  else orariDate.setMonth(orariDate.getMonth() + 1);
+  renderOrariCalendar();
+  renderOrari();
+});
+
+document.getElementById('centesimalToggle').addEventListener('change', (e) => {
+  centesimalMode = e.target.checked;
+  renderOrari();
+});
+
+// ═══════════════════════════════════
+// Orari: Calendar rendering
+// ═══════════════════════════════════
+function renderOrariCalendar() {
+  const label = document.getElementById('orariDateLabel');
+  const area = document.getElementById('orariCalendarArea');
+  label.textContent = formatDateLabel(orariDate, orariView);
+
+  if (orariView === 'day') {
+    area.innerHTML = '';
+    return;
+  }
+
+  if (orariView === 'week') {
+    const ws = getWeekStart(orariDate);
+    let html = '<div class="calendar-week">';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ws);
+      d.setDate(d.getDate() + i);
+      const dk = dateKey(d);
+      const today = sameDay(d, new Date());
+      const sel = sameDay(d, orariDate);
+      const hasShifts = (shifts[currentArea] && shifts[currentArea][dk] && shifts[currentArea][dk].length > 0);
+      html += '<div class="cal-day' + (today ? ' today' : '') + (sel ? ' selected' : '') + '" data-date="' + dk + '"><div style="font-size:.72rem;color:inherit;opacity:.7;margin-bottom:2px">' + DAYS_SHORT[d.getDay()] + '</div>' + d.getDate() + (hasShifts ? '<span class="shift-dot"></span>' : '') + '</div>';
+    }
+    html += '</div>';
+    area.innerHTML = html;
+    area.querySelectorAll('.cal-day').forEach(el => {
+      el.addEventListener('click', () => {
+        const parts = el.dataset.date.split('-');
+        orariDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        renderOrariCalendar();
+        renderOrari();
+      });
+    });
+    return;
+  }
+
+  // Month view
+  const year = orariDate.getFullYear(), month = orariDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+
+  let html = '<div class="calendar-month">';
+  ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].forEach(d => { html += '<div class="cal-day-header">' + d + '</div>'; });
+
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - startOffset);
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const dk = dateKey(d);
+    const isOther = d.getMonth() !== month;
+    const today = sameDay(d, new Date());
+    const sel = sameDay(d, orariDate);
+    const hasShifts = (shifts[currentArea] && shifts[currentArea][dk] && shifts[currentArea][dk].length > 0);
+    html += '<div class="cal-day' + (isOther ? ' other-month' : '') + (today ? ' today' : '') + (sel ? ' selected' : '') + '" data-date="' + dk + '">' + d.getDate() + (hasShifts ? '<span class="shift-dot"></span>' : '') + '</div>';
+  }
+  html += '</div>';
+  area.innerHTML = html;
+  area.querySelectorAll('.cal-day').forEach(el => {
+    el.addEventListener('click', () => {
+      const parts = el.dataset.date.split('-');
+      orariDate = new Date(parts[0], parts[1] - 1, parts[2]);
+      renderOrariCalendar();
+      renderOrari();
+    });
+  });
+}
+
+// ═══════════════════════════════════
+// Orari: Hours calculation
+// ═══════════════════════════════════
+function calcHours(inizio, fine) {
+  if (!inizio || !fine) return null;
+  const sp = inizio.split(':'), ep = fine.split(':');
+  let startMins = parseInt(sp[0]) * 60 + parseInt(sp[1]);
+  let endMins = parseInt(ep[0]) * 60 + parseInt(ep[1]);
+  if (endMins <= startMins) endMins += 1440; // overnight shift
+  const diffMins = endMins - startMins;
+  return diffMins;
+}
+
+function formatHours(totalMins, centesimal) {
+  if (totalMins === null) return '--:--';
+  if (centesimal) {
+    return (totalMins / 60).toFixed(2);
+  }
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  return h + 'h ' + String(m).padStart(2, '0') + 'm';
+}
+
+// ═══════════════════════════════════
+// Orari: Render attendance table
+// ═══════════════════════════════════
+function renderOrari() {
+  const container = document.getElementById('orariTableArea');
+  const dk = dateKey(orariDate);
+  const dayShifts = (shifts[currentArea] && shifts[currentArea][dk]) || [];
+  const areaOps = operators[currentArea] || [];
+
+  if (dayShifts.length === 0) {
+    container.innerHTML = '<div class="orari-empty"><svg class="orari-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>Nessun turno programmato per questa giornata</p></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+
+  dayShifts.forEach(shift => {
+    // Only show shifts that have assigned operators
+    if (!shift.assignments || shift.assignments.length === 0) return;
+
+    const group = document.createElement('div');
+    group.className = 'orari-shift-group';
+
+    // Shift header
+    const header = document.createElement('div');
+    header.className = 'orari-shift-header';
+    const timeLabel = (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '');
+    header.innerHTML = '<span class="orari-shift-badge">' + getShiftEmoji(shift.name) + ' ' + shift.name + '</span>' + (timeLabel ? '<span class="orari-shift-time">' + timeLabel + '</span>' : '');
+    group.appendChild(header);
+
+    // Table
+    const table = document.createElement('table');
+    table.className = 'attendance-table';
+
+    const thead = document.createElement('thead');
+    thead.innerHTML = '<tr><th>Operatore</th><th>Orario inizio</th><th>Orario fine</th><th>Ore lavorate</th><th>Mansione</th></tr>';
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+
+    shift.assignments.forEach(assign => {
+      const opData = areaOps.find(o => o.id === assign.operatorId);
+      const opName = opData ? opData.name : '(rimosso)';
+      const attKey = shift.id + '_' + assign.id;
+
+      // Read stored attendance or default empty
+      const areaAtt = attendance[currentArea] || {};
+      const dayAtt = areaAtt[dk] || {};
+      const record = dayAtt[attKey] || { inizio: '', fine: '' };
+
+      const totalMins = calcHours(record.inizio, record.fine);
+      const hoursText = formatHours(totalMins, centesimalMode);
+      const hoursClass = totalMins === null ? 'attendance-hours empty' : 'attendance-hours';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><div class="attendance-op-name"><span class="op-indicator"></span>' + opName + '</div></td>' +
+        '<td><input type="time" class="attendance-time-input" data-field="inizio" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.inizio + '"></td>' +
+        '<td><input type="time" class="attendance-time-input" data-field="fine" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.fine + '"></td>' +
+        '<td><span class="' + hoursClass + '">' + hoursText + '</span></td>' +
+        '<td><span class="attendance-mansione">' + (assign.mansione || '--') + '</span></td>';
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    group.appendChild(table);
+    container.appendChild(group);
+  });
+
+  // If no shifts had assignments, show empty
+  if (container.innerHTML === '') {
+    container.innerHTML = '<div class="orari-empty"><svg class="orari-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><p>Nessun operatore assegnato ai turni di oggi</p></div>';
+    return;
+  }
+
+  // Attach event listeners to time inputs
+  container.querySelectorAll('.attendance-time-input').forEach(input => {
+    input.addEventListener('change', () => {
+      const shiftId = input.dataset.shift;
+      const assignId = input.dataset.assign;
+      const field = input.dataset.field;
+      const attKey = shiftId + '_' + assignId;
+
+      if (!attendance[currentArea]) attendance[currentArea] = {};
+      if (!attendance[currentArea][dk]) attendance[currentArea][dk] = {};
+      if (!attendance[currentArea][dk][attKey]) attendance[currentArea][dk][attKey] = { inizio: '', fine: '' };
+
+      attendance[currentArea][dk][attKey][field] = input.value;
+
+      // Update hours display in the same row
+      const row = input.closest('tr');
+      const rec = attendance[currentArea][dk][attKey];
+      const mins = calcHours(rec.inizio, rec.fine);
+      const hoursSpan = row.querySelector('.attendance-hours');
+      if (hoursSpan) {
+        hoursSpan.textContent = formatHours(mins, centesimalMode);
+        hoursSpan.className = mins === null ? 'attendance-hours empty' : 'attendance-hours';
+      }
+
+      saveAttendance();
+    });
+  });
 }
 
 // ═══════════════════════════════════
