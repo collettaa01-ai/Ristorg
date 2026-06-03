@@ -834,8 +834,8 @@ function renderShifts() {
           '<td class="drag-handle-cell" title="Trascina per riordinare">⠿</td>' +
           '<td class="mansione-cell"><div class="mansione-name">' + (a.mansione || 'Altro') + '</div></td>' +
           '<td><div class="operator-cell"><span class="op-indicator" style="background:' + (isWorking ? '#16a34a' : '#d1d5db') + '"></span>' + opDisplayName + '</div></td>' +
-          '<td class="time-cell">' + (a.inizio || '—') + '</td>' +
-          '<td class="time-cell">' + (a.fine || '—') + '</td>' +
+          '<td class="time-cell"><input type="time" class="shift-time-edit" data-assign-id="' + a.id + '" data-field="inizio" value="' + (a.inizio || '') + '" step="900"></td>' +
+          '<td class="time-cell"><input type="time" class="shift-time-edit" data-assign-id="' + a.id + '" data-field="fine" value="' + (a.fine || '') + '" step="900"></td>' +
           '<td><button class="icon-btn icon-btn--danger remove-assign-btn" data-aid="' + a.id + '" title="Rimuovi"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>';
 
         // Drag events
@@ -905,6 +905,19 @@ function renderShifts() {
       btn.addEventListener('click', () => {
         shift.assignments = shift.assignments.filter(a => a.id !== btn.dataset.aid);
         saveShifts();
+      });
+    });
+
+    // Editable time inputs for operator assignments
+    card.querySelectorAll('.shift-time-edit').forEach(input => {
+      input.addEventListener('change', () => {
+        const assignId = input.dataset.assignId;
+        const field = input.dataset.field;
+        const assign = shift.assignments.find(a => a.id === assignId);
+        if (assign) {
+          assign[field] = input.value;
+          saveShifts();
+        }
       });
     });
 

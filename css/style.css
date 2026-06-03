@@ -1188,6 +1188,25 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.shift-time-edit {
+  width: 100px;
+  padding: 5px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-xs);
+  font-size: .88rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color var(--transition);
+  font-variant-numeric: tabular-nums;
+}
+
+.shift-time-edit:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
 /* ── Shift empty state (no operators) ── */
 .shift-empty-ops {
   padding: 24px 16px;
