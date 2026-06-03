@@ -252,6 +252,8 @@ function showAreasView() {
   document.getElementById('dailyOverview').style.display = '';
   areaDetail.style.display = 'none';
   currentArea = null;
+  // Reset overview to today
+  overviewDate = new Date();
   renderDailyOverview();
 }
 
