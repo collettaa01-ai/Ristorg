@@ -128,6 +128,8 @@ function initRealtimeSync() {
       shifts = {};
     }
     shiftsReady = true; checkReady();
+    // Always update the daily overview (visible on main page)
+    renderDailyOverview();
     if (currentArea) {
       const activeTab = document.querySelector('.sub-tab.active');
       if (activeTab && activeTab.dataset.tab === 'turni') {
