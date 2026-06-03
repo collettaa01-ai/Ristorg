@@ -275,8 +275,11 @@ function showAreasView() {
   renderDailyOverview();
 }
 
-document.querySelectorAll('.area-card:not(.area-card--add)').forEach(card => {
-  card.addEventListener('click', () => handleAreaClick(card.querySelector('.area-name').textContent));
+document.querySelectorAll('.area-card:not(.area-card--add):not(.area-card--custom)').forEach(card => {
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.area-drag-handle')) return;
+    handleAreaClick(card.querySelector('.area-name').textContent);
+  });
 });
 document.getElementById('backToAreas').addEventListener('click', showAreasView);
 
@@ -336,16 +339,64 @@ function renderCustomAreas() {
   customAreas.forEach(area => {
     const card = document.createElement('div');
     card.className = 'area-card area-card--custom';
-    card.innerHTML = '<button class="area-delete" title="Elimina area"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
+    card.draggable = true;
+    card.innerHTML = '<span class="area-drag-handle" title="Trascina per riordinare">⠿</span>' +
+      '<button class="area-delete" title="Elimina area"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
       '<div class="area-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>' +
       '<h3 class="area-name">' + area.name + '</h3><p class="area-desc">Area personalizzata</p>';
-    card.addEventListener('click', (e) => { if (!e.target.closest('.area-delete')) handleAreaClick(area.name); });
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.area-delete') || e.target.closest('.area-drag-handle')) return;
+      handleAreaClick(area.name);
+    });
     card.querySelector('.area-delete').addEventListener('click', (e) => {
       e.stopPropagation();
       openGenericDeleteConfirm('Sei sicuro di voler eliminare l\'area "' + area.name + '"?', () => deleteArea(area.id));
     });
-    // Insert before the "+" add button
     areasGrid.insertBefore(card, addBtn);
+  });
+
+  initAreaDragAndDrop();
+}
+
+// Drag and drop for all area cards (default + custom)
+function initAreaDragAndDrop() {
+  var dragSrc = null;
+  var cards = areasGrid.querySelectorAll('.area-card:not(.area-card--add)');
+  var addBtn = document.getElementById('addAreaCard');
+
+  cards.forEach(function(card) {
+    card.addEventListener('dragstart', function(e) {
+      dragSrc = card;
+      card.classList.add('card-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', function() {
+      card.classList.remove('card-dragging');
+      areasGrid.querySelectorAll('.card-drag-over').forEach(function(el) { el.classList.remove('card-drag-over'); });
+      dragSrc = null;
+    });
+    card.addEventListener('dragover', function(e) {
+      if (!dragSrc || dragSrc === card) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      areasGrid.querySelectorAll('.card-drag-over').forEach(function(el) { el.classList.remove('card-drag-over'); });
+      card.classList.add('card-drag-over');
+    });
+    card.addEventListener('drop', function(e) {
+      e.preventDefault();
+      card.classList.remove('card-drag-over');
+      if (!dragSrc || dragSrc === card) return;
+      // Swap positions in DOM
+      var allCards = Array.from(areasGrid.querySelectorAll('.area-card:not(.area-card--add)'));
+      var fromIdx = allCards.indexOf(dragSrc);
+      var toIdx = allCards.indexOf(card);
+      if (fromIdx < 0 || toIdx < 0) return;
+      // Remove all cards, reorder, re-insert
+      allCards.forEach(function(c) { c.remove(); });
+      var item = allCards.splice(fromIdx, 1)[0];
+      allCards.splice(toIdx, 0, item);
+      allCards.forEach(function(c) { areasGrid.insertBefore(c, addBtn); });
+    });
   });
 }
 
@@ -1412,3 +1463,4 @@ document.addEventListener('keydown', (e) => {
 // Initialize: start Firestore listeners
 // ═══════════════════════════════════
 initRealtimeSync();
+initAreaDragAndDrop();
