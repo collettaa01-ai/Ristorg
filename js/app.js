@@ -4,22 +4,18 @@
 const db = window.db;
 
 // ═══════════════════════════════════
-// Force 15-minute intervals on all time inputs
-// Capture phase: corrects value BEFORE element-level handlers save it
+// Time select helper (15-min intervals only)
 // ═══════════════════════════════════
-document.addEventListener('change', function(e) {
-  if (e.target.type !== 'time') return;
-  var val = e.target.value;
-  if (!val) return;
-  var parts = val.split(':');
-  var h = parseInt(parts[0]);
-  var m = parseInt(parts[1]);
-  var rounded = Math.round(m / 15) * 15;
-  var finalM = rounded === 60 ? 0 : rounded;
-  var finalH = rounded === 60 ? (h + 1) % 24 : h;
-  var snapped = String(finalH).padStart(2, '0') + ':' + String(finalM).padStart(2, '0');
-  if (snapped !== val) e.target.value = snapped;
-}, true);
+function timeOptionsHTML(selectedValue) {
+  var html = '<option value="">--:--</option>';
+  for (var h = 0; h < 24; h++) {
+    for (var m = 0; m < 60; m += 15) {
+      var val = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      html += '<option value="' + val + '"' + (val === selectedValue ? ' selected' : '') + '>' + val + '</option>';
+    }
+  }
+  return html;
+}
 
 // ═══════════════════════════════════
 // State
@@ -343,7 +339,7 @@ function renderCustomAreas() {
     card.innerHTML = '<span class="area-drag-handle" title="Trascina per riordinare">⠿</span>' +
       '<button class="area-delete" title="Elimina area"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
       '<div class="area-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>' +
-      '<h3 class="area-name">' + area.name + '</h3><p class="area-desc">Area personalizzata</p>';
+      '<h3 class="area-name">' + area.name + '</h3><p class="area-desc">Gestisci il personale dell\'area ' + area.name.toLowerCase() + '</p>';
     card.addEventListener('click', (e) => {
       if (e.target.closest('.area-delete') || e.target.closest('.area-drag-handle')) return;
       handleAreaClick(area.name);
@@ -358,46 +354,49 @@ function renderCustomAreas() {
   initAreaDragAndDrop();
 }
 
-// Drag and drop for all area cards (default + custom)
-function initAreaDragAndDrop() {
-  var dragSrc = null;
-  var cards = areasGrid.querySelectorAll('.area-card:not(.area-card--add)');
+// Drag and drop for all area cards — event delegation (set up once)
+var areaDragSrc = null;
+areasGrid.addEventListener('dragstart', function(e) {
+  var card = e.target.closest('.area-card:not(.area-card--add)');
+  if (!card) return;
+  areaDragSrc = card;
+  card.classList.add('card-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+});
+areasGrid.addEventListener('dragend', function(e) {
+  var card = e.target.closest('.area-card');
+  if (card) card.classList.remove('card-dragging');
+  areasGrid.querySelectorAll('.card-drag-over').forEach(function(el) { el.classList.remove('card-drag-over'); });
+  areaDragSrc = null;
+});
+areasGrid.addEventListener('dragover', function(e) {
+  var card = e.target.closest('.area-card:not(.area-card--add)');
+  if (!card || !areaDragSrc || areaDragSrc === card) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  areasGrid.querySelectorAll('.card-drag-over').forEach(function(el) { el.classList.remove('card-drag-over'); });
+  card.classList.add('card-drag-over');
+});
+areasGrid.addEventListener('drop', function(e) {
+  var card = e.target.closest('.area-card:not(.area-card--add)');
+  if (!card) return;
+  e.preventDefault();
+  card.classList.remove('card-drag-over');
+  if (!areaDragSrc || areaDragSrc === card) return;
   var addBtn = document.getElementById('addAreaCard');
+  var allCards = Array.from(areasGrid.querySelectorAll('.area-card:not(.area-card--add)'));
+  var fromIdx = allCards.indexOf(areaDragSrc);
+  var toIdx = allCards.indexOf(card);
+  if (fromIdx < 0 || toIdx < 0) return;
+  allCards.forEach(function(c) { c.remove(); });
+  var item = allCards.splice(fromIdx, 1)[0];
+  allCards.splice(toIdx, 0, item);
+  allCards.forEach(function(c) { areasGrid.insertBefore(c, addBtn); });
+});
 
-  cards.forEach(function(card) {
-    card.addEventListener('dragstart', function(e) {
-      dragSrc = card;
-      card.classList.add('card-dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    card.addEventListener('dragend', function() {
-      card.classList.remove('card-dragging');
-      areasGrid.querySelectorAll('.card-drag-over').forEach(function(el) { el.classList.remove('card-drag-over'); });
-      dragSrc = null;
-    });
-    card.addEventListener('dragover', function(e) {
-      if (!dragSrc || dragSrc === card) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      areasGrid.querySelectorAll('.card-drag-over').forEach(function(el) { el.classList.remove('card-drag-over'); });
-      card.classList.add('card-drag-over');
-    });
-    card.addEventListener('drop', function(e) {
-      e.preventDefault();
-      card.classList.remove('card-drag-over');
-      if (!dragSrc || dragSrc === card) return;
-      // Swap positions in DOM
-      var allCards = Array.from(areasGrid.querySelectorAll('.area-card:not(.area-card--add)'));
-      var fromIdx = allCards.indexOf(dragSrc);
-      var toIdx = allCards.indexOf(card);
-      if (fromIdx < 0 || toIdx < 0) return;
-      // Remove all cards, reorder, re-insert
-      allCards.forEach(function(c) { c.remove(); });
-      var item = allCards.splice(fromIdx, 1)[0];
-      allCards.splice(toIdx, 0, item);
-      allCards.forEach(function(c) { areasGrid.insertBefore(c, addBtn); });
-    });
-  });
+// Keep for backward compat (called after renderCustomAreas)
+function initAreaDragAndDrop() {
+  // No-op: drag is handled by event delegation above
 }
 
 // ═══════════════════════════════════
@@ -733,8 +732,8 @@ function openShiftModal(shift) {
   document.getElementById('shiftModalTitle').textContent = shift ? 'Modifica turno' : 'Crea turno';
   document.getElementById('shiftModalConfirm').textContent = shift ? 'Salva modifiche' : 'Crea turno';
   shiftNameInput.value = shift ? shift.name : '';
-  shiftStartInput.value = shift ? shift.startTime : '';
-  shiftEndInput.value = shift ? shift.endTime : '';
+  shiftStartInput.innerHTML = timeOptionsHTML(shift ? shift.startTime : '');
+  shiftEndInput.innerHTML = timeOptionsHTML(shift ? shift.endTime : '');
   shiftModalOverlay.classList.add('visible');
   setTimeout(() => shiftNameInput.focus(), 200);
 }
@@ -905,8 +904,8 @@ function renderShifts() {
           '<td class="drag-handle-cell" title="Trascina per riordinare">⠿</td>' +
           '<td class="mansione-cell"><div class="mansione-name">' + (a.mansione || 'Altro') + '</div></td>' +
           '<td><div class="operator-cell"><span class="op-indicator" style="background:' + (isWorking ? '#16a34a' : '#d1d5db') + '"></span>' + opDisplayName + '</div></td>' +
-          '<td class="time-cell"><input type="time" class="shift-time-edit" data-assign-id="' + a.id + '" data-field="inizio" value="' + (a.inizio || '') + '" step="900"></td>' +
-          '<td class="time-cell"><input type="time" class="shift-time-edit" data-assign-id="' + a.id + '" data-field="fine" value="' + (a.fine || '') + '" step="900"></td>' +
+          '<td class="time-cell"><select class="shift-time-edit time-select" data-assign-id="' + a.id + '" data-field="inizio">' + timeOptionsHTML(a.inizio || '') + '</select></td>' +
+          '<td class="time-cell"><select class="shift-time-edit time-select" data-assign-id="' + a.id + '" data-field="fine">' + timeOptionsHTML(a.fine || '') + '</select></td>' +
           '<td><button class="icon-btn icon-btn--danger remove-assign-btn" data-aid="' + a.id + '" title="Rimuovi"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>';
 
         // Drag events
@@ -1049,8 +1048,8 @@ function openAddOperatorRow(shift, card) {
   row.innerHTML = `
     <select class="inline-op-select">${opOptions}</select>
     <input type="text" class="modal-input inline-mansione" placeholder="Mansione" style="max-width:140px">
-    <input type="time" class="modal-input inline-inizio" style="max-width:110px" step="900">
-    <input type="time" class="modal-input inline-fine" style="max-width:110px" step="900">
+    <select class="modal-input inline-inizio time-select" style="max-width:120px"></select>
+    <select class="modal-input inline-fine time-select" style="max-width:120px"></select>
     <button class="btn btn--primary inline-confirm" style="padding:7px 14px;font-size:.82rem">Aggiungi</button>
     <button class="btn btn--secondary inline-cancel" style="padding:7px 14px;font-size:.82rem">Annulla</button>`;
 
@@ -1066,8 +1065,8 @@ function openAddOperatorRow(shift, card) {
   autoFillMansione();
   select.addEventListener('change', autoFillMansione);
 
-  if (shift.startTime) inizioInput.value = shift.startTime;
-  if (shift.endTime) fineInput.value = shift.endTime;
+  inizioInput.innerHTML = timeOptionsHTML(shift.startTime || '');
+  fineInput.innerHTML = timeOptionsHTML(shift.endTime || '');
 
   row.querySelector('.inline-confirm').addEventListener('click', () => {
     const opId = select.value;
@@ -1377,8 +1376,8 @@ function renderOrari() {
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td><div class="attendance-op-name"><span class="op-indicator"></span>' + opName + '</div></td>' +
-        '<td><input type="time" class="attendance-time-input" data-field="inizio" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.inizio + '" step="900"></td>' +
-        '<td><input type="time" class="attendance-time-input" data-field="fine" data-shift="' + shift.id + '" data-assign="' + assign.id + '" value="' + record.fine + '" step="900"></td>' +
+        '<td><select class="attendance-time-input time-select" data-field="inizio" data-shift="' + shift.id + '" data-assign="' + assign.id + '">' + timeOptionsHTML(record.inizio) + '</select></td>' +
+        '<td><select class="attendance-time-input time-select" data-field="fine" data-shift="' + shift.id + '" data-assign="' + assign.id + '">' + timeOptionsHTML(record.fine) + '</select></td>' +
         '<td><span class="' + hoursClass + '">' + hoursText + '</span></td>' +
         '<td><span class="attendance-mansione">' + (assign.mansione || '--') + '</span></td>';
 

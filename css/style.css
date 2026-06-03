@@ -1225,8 +1225,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.shift-time-edit {
-  width: 100px;
+/* ── Time select (shared style for all time dropdowns) ── */
+.time-select {
   padding: 5px 8px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-xs);
@@ -1236,12 +1236,17 @@ body {
   background: var(--bg);
   outline: none;
   transition: border-color var(--transition);
-  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  min-width: 90px;
 }
 
-.shift-time-edit:focus {
+.time-select:focus {
   border-color: var(--accent);
   background: var(--surface);
+}
+
+.shift-time-edit {
+  min-width: 90px;
 }
 
 /* ── Shift empty state (no operators) ── */
@@ -1637,22 +1642,7 @@ body {
 }
 
 .attendance-time-input {
-  width: 110px;
-  padding: 6px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  font-size: .88rem;
-  font-family: inherit;
-  color: var(--text);
-  background: var(--bg);
-  outline: none;
-  transition: border-color var(--transition);
-  font-variant-numeric: tabular-nums;
-}
-
-.attendance-time-input:focus {
-  border-color: var(--accent);
-  background: #fff;
+  min-width: 90px;
 }
 
 .attendance-hours {
