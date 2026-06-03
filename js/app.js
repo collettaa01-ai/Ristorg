@@ -338,12 +338,9 @@ function renderDailyOverview() {
   const overviewBox = document.getElementById('dailyOverview');
   if (!container || !dateEl) return;
 
-  // Hide when inside area detail
-  if (currentArea) {
-    overviewBox.style.display = 'none';
-    return;
-  }
-  overviewBox.style.display = '';
+  // Hide container when inside area detail, but ALWAYS render content
+  // so data is up to date when the user navigates back
+  overviewBox.style.display = currentArea ? 'none' : '';
 
   const dk = dateKey(overviewDate);
   dateEl.textContent = DAYS[overviewDate.getDay()] + ' ' + overviewDate.getDate() + ' ' + MONTHS[overviewDate.getMonth()] + ' ' + overviewDate.getFullYear();
