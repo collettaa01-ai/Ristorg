@@ -383,6 +383,128 @@ body {
 
 /* ── (custom-areas-section removed — areas now inside areas-container) ── */
 
+/* ── Daily overview ── */
+.daily-overview {
+  margin-top: var(--space-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.daily-overview-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.daily-overview-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -.2px;
+  color: var(--text);
+}
+
+.daily-overview-date {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+
+.daily-overview-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* Area group inside overview */
+.overview-area-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.overview-area-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.overview-shifts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.overview-shift-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.overview-shift-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.overview-shift-chip:active {
+  transform: translateY(0);
+}
+
+.overview-shift-emoji {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.overview-shift-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.overview-shift-name {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.overview-shift-time {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.overview-shift-ops {
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.overview-empty {
+  text-align: center;
+  padding: var(--space-xl) var(--space-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
 /* ── Empty state ── */
 .empty-state {
   grid-column: 1 / -1;

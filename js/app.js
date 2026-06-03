@@ -68,6 +68,7 @@ function saveAttendance() {
 function refreshCurrentView() {
   // Re-render whatever the user is currently looking at
   renderCustomAreas();
+  renderDailyOverview();
   if (currentArea) {
     const activeTab = document.querySelector('.sub-tab.active');
     if (!activeTab) return;
@@ -236,6 +237,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 function handleAreaClick(areaName) {
   currentArea = areaName;
   document.getElementById('areasContainer').style.display = 'none';
+  document.getElementById('dailyOverview').style.display = 'none';
   areaDetail.style.display = '';
   areaDetailTitle.textContent = areaName;
   switchSubTab('operatori');
@@ -244,8 +246,10 @@ function handleAreaClick(areaName) {
 
 function showAreasView() {
   document.getElementById('areasContainer').style.display = '';
+  document.getElementById('dailyOverview').style.display = '';
   areaDetail.style.display = 'none';
   currentArea = null;
+  renderDailyOverview();
 }
 
 document.querySelectorAll('.area-card:not(.area-card--add)').forEach(card => {
@@ -313,9 +317,86 @@ function renderCustomAreas() {
       '<div class="area-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>' +
       '<h3 class="area-name">' + area.name + '</h3><p class="area-desc">Area personalizzata</p>';
     card.addEventListener('click', (e) => { if (!e.target.closest('.area-delete')) handleAreaClick(area.name); });
-    card.querySelector('.area-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteArea(area.id); });
+    card.querySelector('.area-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openGenericDeleteConfirm('Sei sicuro di voler eliminare l\'area "' + area.name + '"?', () => deleteArea(area.id));
+    });
     // Insert before the "+" add button
     areasGrid.insertBefore(card, addBtn);
+  });
+}
+
+// ═══════════════════════════════════
+// Daily Overview
+// ═══════════════════════════════════
+function renderDailyOverview() {
+  const container = document.getElementById('dailyOverviewContent');
+  const dateEl = document.getElementById('dailyOverviewDate');
+  const overviewBox = document.getElementById('dailyOverview');
+  if (!container || !dateEl) return;
+
+  // Hide when inside area detail
+  if (currentArea) {
+    overviewBox.style.display = 'none';
+    return;
+  }
+  overviewBox.style.display = '';
+
+  const today = new Date();
+  const todayDk = dateKey(today);
+  dateEl.textContent = DAYS[today.getDay()] + ' ' + today.getDate() + ' ' + MONTHS[today.getMonth()] + ' ' + today.getFullYear();
+
+  // Collect all areas: fixed + custom
+  const allAreas = ['Staff cucina', 'Staff sala'].concat(customAreas.map(a => a.name));
+
+  let html = '';
+  let hasAnyShift = false;
+
+  allAreas.forEach(areaName => {
+    const areaShifts = (shifts[areaName] && shifts[areaName][todayDk]) || [];
+    if (areaShifts.length === 0) return;
+    hasAnyShift = true;
+
+    html += '<div class="overview-area-group">';
+    html += '<div class="overview-area-name">' + areaName + '</div>';
+    html += '<div class="overview-shifts">';
+
+    areaShifts.forEach(shift => {
+      const emoji = getShiftEmoji(shift.name, shift.startTime);
+      const timeStr = (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '');
+      const opCount = shift.assignments ? shift.assignments.length : 0;
+      const opLabel = opCount === 0 ? 'Nessun operatore' : opCount + (opCount === 1 ? ' operatore' : ' operatori');
+
+      html += '<div class="overview-shift-chip" data-area="' + areaName + '" data-shift-id="' + shift.id + '">';
+      html += '<span class="overview-shift-emoji">' + emoji + '</span>';
+      html += '<div class="overview-shift-info">';
+      html += '<span class="overview-shift-name">' + shift.name + '</span>';
+      if (timeStr) html += '<span class="overview-shift-time">' + timeStr + '</span>';
+      html += '<span class="overview-shift-ops">' + opLabel + '</span>';
+      html += '</div></div>';
+    });
+
+    html += '</div></div>';
+  });
+
+  if (!hasAnyShift) {
+    container.innerHTML = '<div class="overview-empty"><p>Nessun turno programmato per oggi</p></div>';
+    return;
+  }
+
+  container.innerHTML = html;
+
+  // Click handlers — navigate to the area's Turni tab
+  container.querySelectorAll('.overview-shift-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const areaName = chip.dataset.area;
+      handleAreaClick(areaName);
+      switchSubTab('turni');
+      // Set selectedDate to today so the shift is visible
+      selectedDate = new Date();
+      renderCalendar();
+      renderShifts();
+    });
   });
 }
 
