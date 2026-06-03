@@ -25,6 +25,28 @@ let copiedWeekData = null;
 let dragState = { row: null, shiftId: null };
 
 // ═══════════════════════════════════
+// Toast notifications
+// ═══════════════════════════════════
+(function initToastContainer() {
+  const c = document.createElement('div');
+  c.className = 'toast-container';
+  c.id = 'toastContainer';
+  document.body.appendChild(c);
+})();
+
+function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast' + (type ? ' toast--' + type : '');
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    toast.addEventListener('animationend', () => toast.remove());
+  }, 2500);
+}
+
+// ═══════════════════════════════════
 // Firestore save helpers
 // ═══════════════════════════════════
 function saveAreas() {
@@ -342,6 +364,7 @@ function saveOperator() {
   }
   saveOperators();
   closeOperatorModal();
+  showToast(editingOperatorId ? 'Operatore aggiornato' : 'Operatore aggiunto', 'success');
 }
 
 // Delete confirmation
@@ -368,9 +391,11 @@ deleteOverlay.addEventListener('click', (e) => { if (e.target === deleteOverlay)
 document.getElementById('deleteConfirmOk').addEventListener('click', () => {
   if (pendingDeleteAction) {
     pendingDeleteAction();
+    showToast('Eliminato con successo', 'danger');
   } else if (deletingOperatorId && operators[currentArea]) {
     operators[currentArea] = operators[currentArea].filter(o => o.id !== deletingOperatorId);
     saveOperators();
+    showToast('Operatore eliminato', 'danger');
   }
   closeDeleteConfirm();
 });
@@ -538,6 +563,7 @@ document.getElementById('shiftModalConfirm').addEventListener('click', () => {
   }
   saveShifts();
   closeShiftModal();
+  showToast(editingShiftId ? 'Turno aggiornato' : 'Turno creato', 'success');
 });
 
 function deleteShift(shiftId) {
@@ -586,6 +612,7 @@ document.getElementById('copyShiftConfirm').addEventListener('click', () => {
 
   saveShifts();
   copyOverlay.classList.remove('visible'); copyingShift = null;
+  showToast('Turno copiato su ' + dates.length + (dates.length === 1 ? ' giorno' : ' giorni'), 'success');
 });
 
 // ═══════════════════════════════════
@@ -863,6 +890,7 @@ document.getElementById('copyWeekConfirm').addEventListener('click', () => {
 
   saveShifts();
   copyWeekOverlay.classList.remove('visible');
+  showToast('Settimana copiata con successo', 'success');
 });
 
 function renderWeekActions() {
