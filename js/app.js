@@ -197,8 +197,7 @@ const sidebarToggle = document.getElementById('sidebarToggle');
 const topbarTitle = document.getElementById('topbarTitle');
 const modalOverlay = document.getElementById('modalOverlay');
 const modalInput = document.getElementById('areaNameInput');
-const customAreasGrid = document.getElementById('customAreasGrid');
-const customAreasSection = document.getElementById('customAreasSection');
+const areasGrid = document.getElementById('areasGrid');
 const areaDetail = document.getElementById('areaDetail');
 const areaDetailTitle = document.getElementById('areaDetailTitle');
 const addAreaCard = document.getElementById('addAreaCard');
@@ -236,8 +235,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 // ═══════════════════════════════════
 function handleAreaClick(areaName) {
   currentArea = areaName;
-  document.querySelector('.areas-grid').style.display = 'none';
-  customAreasSection.style.display = 'none';
+  document.getElementById('areasContainer').style.display = 'none';
   areaDetail.style.display = '';
   areaDetailTitle.textContent = areaName;
   switchSubTab('operatori');
@@ -245,8 +243,7 @@ function handleAreaClick(areaName) {
 }
 
 function showAreasView() {
-  document.querySelector('.areas-grid').style.display = '';
-  customAreasSection.style.display = '';
+  document.getElementById('areasContainer').style.display = '';
   areaDetail.style.display = 'none';
   currentArea = null;
 }
@@ -305,18 +302,20 @@ function deleteArea(id) {
 }
 
 function renderCustomAreas() {
-  customAreasGrid.innerHTML = '';
-  if (customAreas.length === 0) {
-    customAreasGrid.innerHTML = `<div class="empty-state"><svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><p>Nessuna area creata</p></div>`;
-    return;
-  }
+  // Remove old custom cards
+  areasGrid.querySelectorAll('.area-card--custom').forEach(el => el.remove());
+  const addBtn = document.getElementById('addAreaCard');
+
   customAreas.forEach(area => {
     const card = document.createElement('div');
     card.className = 'area-card area-card--custom';
-    card.innerHTML = `<button class="area-delete" title="Elimina area"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button><div class="area-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><h3 class="area-name">${area.name}</h3><p class="area-desc">Area personalizzata</p>`;
+    card.innerHTML = '<button class="area-delete" title="Elimina area"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
+      '<div class="area-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>' +
+      '<h3 class="area-name">' + area.name + '</h3><p class="area-desc">Area personalizzata</p>';
     card.addEventListener('click', (e) => { if (!e.target.closest('.area-delete')) handleAreaClick(area.name); });
     card.querySelector('.area-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteArea(area.id); });
-    customAreasGrid.appendChild(card);
+    // Insert before the "+" add button
+    areasGrid.insertBefore(card, addBtn);
   });
 }
 

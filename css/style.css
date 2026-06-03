@@ -246,18 +246,34 @@ body {
   50% { opacity: .4; }
 }
 
-/* ── Areas grid ── */
-.areas-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-  margin-bottom: 40px;
-}
-
-.area-card {
+/* ── Areas container ── */
+.areas-container {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.areas-container-title {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -.2px;
+  margin-bottom: var(--space-lg);
+  color: var(--text);
+}
+
+/* ── Areas grid ── */
+.areas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.area-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 28px 24px;
   display: flex;
   flex-direction: column;
@@ -365,21 +381,7 @@ body {
   color: #dc2626;
 }
 
-/* ── Custom areas section ── */
-.custom-areas-title {
-  font-size: .85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .8px;
-  color: var(--text-secondary);
-  margin-bottom: 16px;
-}
-
-.custom-areas-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 20px;
-}
+/* ── (custom-areas-section removed — areas now inside areas-container) ── */
 
 /* ── Empty state ── */
 .empty-state {
