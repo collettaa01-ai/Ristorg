@@ -959,15 +959,23 @@ function openAddOperatorRow(shift, card) {
   if (existing) { existing.remove(); return; }
 
   const areaOps = operators[currentArea] || [];
+  // Filter out operators already assigned to this shift
+  const assignedIds = (shift.assignments || []).map(a => a.operatorId);
+  const availableOps = areaOps.filter(op => !assignedIds.includes(op.id));
+
   if (areaOps.length === 0) {
     alert("Nessun operatore registrato in questa area. Vai alla sezione Operatori per aggiungerne.");
+    return;
+  }
+  if (availableOps.length === 0) {
+    alert("Tutti gli operatori sono già assegnati a questo turno.");
     return;
   }
 
   const row = document.createElement('div');
   row.className = 'add-op-inline add-op-row';
 
-  let opOptions = areaOps.map(op => `<option value="${op.id}">${op.name}${op.role ? ' — ' + op.role : ''}</option>`).join('');
+  let opOptions = availableOps.map(op => '<option value="' + op.id + '">' + op.name + (op.role ? ' — ' + op.role : '') + '</option>').join('');
 
   row.innerHTML = `
     <select class="inline-op-select">${opOptions}</select>
@@ -983,7 +991,7 @@ function openAddOperatorRow(shift, card) {
   const fineInput = row.querySelector('.inline-fine');
 
   function autoFillMansione() {
-    const op = areaOps.find(o => o.id === select.value);
+    const op = availableOps.find(o => o.id === select.value);
     if (op && op.role) mansioneInput.value = op.role;
   }
   autoFillMansione();
