@@ -25,7 +25,6 @@ document.addEventListener('change', function(e) {
 // State
 // ═══════════════════════════════════
 let customAreas = [];
-let areaOrder = null; // ordered list of all area names (defaults + custom)
 let operators = {};
 let shifts = {};
 let attendance = {};
@@ -70,7 +69,7 @@ function showToast(message, type) {
 // Firestore save helpers
 // ═══════════════════════════════════
 function saveAreas() {
-  db.collection('config').doc('areas').set({ data: customAreas, order: areaOrder });
+  db.collection('config').doc('areas').set({ data: customAreas });
 }
 function saveOperators() {
   db.collection('config').doc('operators').set({ data: operators });
@@ -124,13 +123,6 @@ function initRealtimeSync() {
       customAreas = doc.data().data;
     } else {
       customAreas = [];
-    }
-    // Load or build area order
-    if (doc.exists && doc.data().order) {
-      areaOrder = doc.data().order;
-    } else {
-      // Build default order: defaults + custom names
-      areaOrder = buildDefaultAreaOrder();
     }
     areasReady = true; checkReady();
     refreshCurrentView();
@@ -283,6 +275,9 @@ function showAreasView() {
   renderDailyOverview();
 }
 
+document.querySelectorAll('.area-card:not(.area-card--add)').forEach(card => {
+  card.addEventListener('click', () => handleAreaClick(card.querySelector('.area-name').textContent));
+});
 document.getElementById('backToAreas').addEventListener('click', showAreasView);
 
 // ═══════════════════════════════════
@@ -315,119 +310,41 @@ modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) c
 modalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') createArea(); });
 document.getElementById('modalConfirm').addEventListener('click', createArea);
 
-const DEFAULT_AREAS = [
-  { name: 'Staff cucina', desc: 'Gestisci il personale di cucina', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6 2 10c0 2.76 1.5 5.2 4 6.5V21h12v-4.5c2.5-1.3 4-3.74 4-6.5 0-4-4.48-8-10-8z"/><path d="M9 21v-3M15 21v-3M12 2v4"/></svg>' },
-  { name: 'Staff sala', desc: 'Gestisci il personale di sala', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V12l9-7 9 7v10"/><rect x="9" y="14" width="6" height="8"/><line x1="3" y1="22" x2="21" y2="22"/></svg>' }
-];
-const CUSTOM_AREA_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
-
-function buildDefaultAreaOrder() {
-  var order = DEFAULT_AREAS.map(a => a.name);
-  customAreas.forEach(a => { if (order.indexOf(a.name) === -1) order.push(a.name); });
-  return order;
-}
-
 function createArea() {
   const name = modalInput.value.trim();
   if (!name) return;
-  const allNames = DEFAULT_AREAS.map(a => a.name).concat(customAreas.map(a => a.name));
-  if (allNames.some(n => n.toLowerCase() === name.toLowerCase())) {
+  if (customAreas.some(a => a.name.toLowerCase() === name.toLowerCase())) {
     modalInput.style.borderColor = '#dc2626';
     setTimeout(() => { modalInput.style.borderColor = ''; }, 1500);
     return;
   }
   customAreas.push({ name, id: Date.now().toString() });
-  if (!areaOrder) areaOrder = buildDefaultAreaOrder();
-  else areaOrder.push(name);
   saveAreas();
   closeAreaModal();
 }
 
 function deleteArea(id) {
-  var area = customAreas.find(a => a.id === id);
   customAreas = customAreas.filter(a => a.id !== id);
-  if (area && areaOrder) areaOrder = areaOrder.filter(n => n !== area.name);
   saveAreas();
 }
 
 function renderCustomAreas() {
-  renderAllAreas();
-}
-
-function renderAllAreas() {
-  // Remove all dynamic area cards
-  areasGrid.querySelectorAll('.area-card:not(.area-card--add)').forEach(el => el.remove());
+  // Remove old custom cards
+  areasGrid.querySelectorAll('.area-card--custom').forEach(el => el.remove());
   const addBtn = document.getElementById('addAreaCard');
-  if (!areaOrder) areaOrder = buildDefaultAreaOrder();
 
-  var dragSrc = null;
-
-  areaOrder.forEach((areaName, idx) => {
-    var defaultArea = DEFAULT_AREAS.find(a => a.name === areaName);
-    var customArea = customAreas.find(a => a.name === areaName);
-    if (!defaultArea && !customArea) return; // orphan name in order
-
-    var isCustom = !defaultArea;
-    var icon = defaultArea ? defaultArea.icon : CUSTOM_AREA_ICON;
-    var desc = defaultArea ? defaultArea.desc : 'Area personalizzata';
-
-    var card = document.createElement('div');
-    card.className = 'area-card' + (isCustom ? ' area-card--custom' : '');
-    card.draggable = true;
-    card.dataset.areaIdx = idx;
-
-    var html = '<span class="area-drag-handle" title="Trascina per riordinare">⠿</span>';
-    if (isCustom) {
-      html += '<button class="area-delete" title="Elimina area"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
-    }
-    html += '<div class="area-icon">' + icon + '</div>';
-    html += '<h3 class="area-name">' + areaName + '</h3>';
-    html += '<p class="area-desc">' + desc + '</p>';
-    card.innerHTML = html;
-
-    // Click to enter area
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('.area-delete') || e.target.closest('.area-drag-handle')) return;
-      handleAreaClick(areaName);
+  customAreas.forEach(area => {
+    const card = document.createElement('div');
+    card.className = 'area-card area-card--custom';
+    card.innerHTML = '<button class="area-delete" title="Elimina area"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
+      '<div class="area-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>' +
+      '<h3 class="area-name">' + area.name + '</h3><p class="area-desc">Area personalizzata</p>';
+    card.addEventListener('click', (e) => { if (!e.target.closest('.area-delete')) handleAreaClick(area.name); });
+    card.querySelector('.area-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openGenericDeleteConfirm('Sei sicuro di voler eliminare l\'area "' + area.name + '"?', () => deleteArea(area.id));
     });
-
-    // Delete (custom only)
-    if (isCustom) {
-      card.querySelector('.area-delete').addEventListener('click', (e) => {
-        e.stopPropagation();
-        openGenericDeleteConfirm('Sei sicuro di voler eliminare l\'area "' + areaName + '"?', () => deleteArea(customArea.id));
-      });
-    }
-
-    // Drag events
-    card.addEventListener('dragstart', (e) => {
-      dragSrc = card;
-      card.classList.add('card-dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    card.addEventListener('dragend', () => {
-      card.classList.remove('card-dragging');
-      areasGrid.querySelectorAll('.card-drag-over').forEach(el => el.classList.remove('card-drag-over'));
-      dragSrc = null;
-    });
-    card.addEventListener('dragover', (e) => {
-      if (!dragSrc || dragSrc === card) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      areasGrid.querySelectorAll('.card-drag-over').forEach(el => el.classList.remove('card-drag-over'));
-      card.classList.add('card-drag-over');
-    });
-    card.addEventListener('drop', (e) => {
-      e.preventDefault();
-      card.classList.remove('card-drag-over');
-      if (!dragSrc || dragSrc === card) return;
-      var fromIdx = parseInt(dragSrc.dataset.areaIdx);
-      var toIdx = parseInt(card.dataset.areaIdx);
-      var item = areaOrder.splice(fromIdx, 1)[0];
-      areaOrder.splice(toIdx, 0, item);
-      saveAreas();
-    });
-
+    // Insert before the "+" add button
     areasGrid.insertBefore(card, addBtn);
   });
 }

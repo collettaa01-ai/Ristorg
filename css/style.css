@@ -322,43 +322,6 @@ body {
   line-height: 1.4;
 }
 
-/* Area card drag handle */
-.area-drag-handle {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  opacity: 0;
-  transition: opacity var(--transition);
-  cursor: grab;
-  font-size: .85rem;
-  user-select: none;
-}
-
-.area-drag-handle:active {
-  cursor: grabbing;
-}
-
-.area-card:hover .area-drag-handle {
-  opacity: .5;
-}
-
-.area-card.card-dragging {
-  opacity: .4;
-  box-shadow: var(--shadow-lg);
-}
-
-.area-card.card-drag-over {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-light);
-}
-
 /* Add area card */
 .area-card--add {
   border-style: dashed;
