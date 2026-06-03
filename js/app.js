@@ -4,6 +4,24 @@
 const db = window.db;
 
 // ═══════════════════════════════════
+// Force 15-minute intervals on all time inputs
+// Capture phase: corrects value BEFORE element-level handlers save it
+// ═══════════════════════════════════
+document.addEventListener('change', function(e) {
+  if (e.target.type !== 'time') return;
+  var val = e.target.value;
+  if (!val) return;
+  var parts = val.split(':');
+  var h = parseInt(parts[0]);
+  var m = parseInt(parts[1]);
+  var rounded = Math.round(m / 15) * 15;
+  var finalM = rounded === 60 ? 0 : rounded;
+  var finalH = rounded === 60 ? (h + 1) % 24 : h;
+  var snapped = String(finalH).padStart(2, '0') + ':' + String(finalM).padStart(2, '0');
+  if (snapped !== val) e.target.value = snapped;
+}, true);
+
+// ═══════════════════════════════════
 // State
 // ═══════════════════════════════════
 let customAreas = [];
