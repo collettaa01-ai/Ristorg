@@ -23,6 +23,7 @@ let centesimalMode = false;
 let pendingDeleteAction = null;
 let copiedWeekData = null;
 let dragState = { row: null, shiftId: null };
+let overviewDate = new Date();
 
 // ═══════════════════════════════════
 // Toast notifications
@@ -344,63 +345,121 @@ function renderDailyOverview() {
   }
   overviewBox.style.display = '';
 
-  const today = new Date();
-  const todayDk = dateKey(today);
-  dateEl.textContent = DAYS[today.getDay()] + ' ' + today.getDate() + ' ' + MONTHS[today.getMonth()] + ' ' + today.getFullYear();
+  const dk = dateKey(overviewDate);
+  dateEl.textContent = DAYS[overviewDate.getDay()] + ' ' + overviewDate.getDate() + ' ' + MONTHS[overviewDate.getMonth()] + ' ' + overviewDate.getFullYear();
 
   // Collect all areas: fixed + custom
   const allAreas = ['Staff cucina', 'Staff sala'].concat(customAreas.map(a => a.name));
+  const areaOpsMap = {};
+  allAreas.forEach(a => { areaOpsMap[a] = operators[a] || []; });
 
-  let html = '';
+  container.innerHTML = '';
   let hasAnyShift = false;
 
   allAreas.forEach(areaName => {
-    const areaShifts = (shifts[areaName] && shifts[areaName][todayDk]) || [];
+    const areaShifts = (shifts[areaName] && shifts[areaName][dk]) || [];
     if (areaShifts.length === 0) return;
     hasAnyShift = true;
 
-    html += '<div class="overview-area-group">';
-    html += '<div class="overview-area-name">' + areaName + '</div>';
-    html += '<div class="overview-shifts">';
+    const group = document.createElement('div');
+    group.className = 'overview-area-group';
+    group.innerHTML = '<div class="overview-area-name">' + areaName + '</div>';
+
+    const areaOps = areaOpsMap[areaName];
 
     areaShifts.forEach(shift => {
       const emoji = getShiftEmoji(shift.name, shift.startTime);
       const timeStr = (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '');
-      const opCount = shift.assignments ? shift.assignments.length : 0;
-      const opLabel = opCount === 0 ? 'Nessun operatore' : opCount + (opCount === 1 ? ' operatore' : ' operatori');
 
-      html += '<div class="overview-shift-chip" data-area="' + areaName + '" data-shift-id="' + shift.id + '">';
-      html += '<span class="overview-shift-emoji">' + emoji + '</span>';
-      html += '<div class="overview-shift-info">';
-      html += '<span class="overview-shift-name">' + shift.name + '</span>';
-      if (timeStr) html += '<span class="overview-shift-time">' + timeStr + '</span>';
-      html += '<span class="overview-shift-ops">' + opLabel + '</span>';
-      html += '</div></div>';
+      const card = document.createElement('div');
+      card.className = 'overview-shift-card';
+
+      // Header with badge + time + goto button
+      const header = document.createElement('div');
+      header.className = 'overview-shift-card-header';
+      header.innerHTML =
+        '<div class="shift-badge">' + emoji + ' ' + shift.name + '</div>' +
+        '<div class="shift-status inactive">' +
+        '<span class="status-dot gray"></span>' + timeStr +
+        '</div>';
+
+      const gotoBtn = document.createElement('button');
+      gotoBtn.className = 'overview-goto-btn';
+      gotoBtn.title = 'Vai al turno';
+      gotoBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+      gotoBtn.addEventListener('click', () => {
+        const targetShiftId = shift.id;
+        handleAreaClick(areaName);
+        switchSubTab('turni');
+        selectedDate = new Date(overviewDate);
+        renderCalendar();
+        renderShifts();
+        // Scroll to the specific shift card
+        setTimeout(() => {
+          const shiftCards = document.querySelectorAll('#shiftsArea .shift-card');
+          shiftCards.forEach(sc => {
+            const delBtn = sc.querySelector('.del-shift-btn');
+            if (!delBtn) return;
+            // Match by shift name + time (shift IDs may differ after re-render)
+            const badge = sc.querySelector('.shift-badge');
+            if (badge && badge.textContent.includes(shift.name)) {
+              sc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              sc.style.boxShadow = '0 0 0 2px var(--accent)';
+              setTimeout(() => { sc.style.boxShadow = ''; }, 2000);
+            }
+          });
+        }, 150);
+      });
+      header.appendChild(gotoBtn);
+      card.appendChild(header);
+
+      // Table body (readonly)
+      if (shift.assignments && shift.assignments.length > 0) {
+        const table = document.createElement('table');
+        table.className = 'overview-table';
+
+        const thead = document.createElement('thead');
+        thead.innerHTML = '<tr><th>Mansione</th><th>Operatori</th><th>Inizio</th><th>Fine</th></tr>';
+        table.appendChild(thead);
+
+        const tbody = document.createElement('tbody');
+        shift.assignments.forEach(a => {
+          const opData = areaOps.find(o => o.id === a.operatorId);
+          const opName = opData ? opData.name : '(rimosso)';
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td class="mansione-cell"><div class="mansione-name">' + (a.mansione || 'Altro') + '</div></td>' +
+            '<td><div class="operator-cell"><span class="op-indicator" style="background:#d1d5db"></span>' + opName + '</div></td>' +
+            '<td class="time-cell">' + (a.inizio || '--') + '</td>' +
+            '<td class="time-cell">' + (a.fine || '--') + '</td>';
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        card.appendChild(table);
+      } else {
+        card.innerHTML += '<div class="shift-empty-ops">Nessun operatore assegnato</div>';
+      }
+
+      group.appendChild(card);
     });
 
-    html += '</div></div>';
+    container.appendChild(group);
   });
 
   if (!hasAnyShift) {
-    container.innerHTML = '<div class="overview-empty"><p>Nessun turno programmato per oggi</p></div>';
-    return;
+    container.innerHTML = '<div class="overview-empty"><p>Nessun turno programmato per questa giornata</p></div>';
   }
-
-  container.innerHTML = html;
-
-  // Click handlers — navigate to the area's Turni tab
-  container.querySelectorAll('.overview-shift-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const areaName = chip.dataset.area;
-      handleAreaClick(areaName);
-      switchSubTab('turni');
-      // Set selectedDate to today so the shift is visible
-      selectedDate = new Date();
-      renderCalendar();
-      renderShifts();
-    });
-  });
 }
+
+// Overview date navigation
+document.getElementById('overviewPrev').addEventListener('click', () => {
+  overviewDate.setDate(overviewDate.getDate() - 1);
+  renderDailyOverview();
+});
+document.getElementById('overviewNext').addEventListener('click', () => {
+  overviewDate.setDate(overviewDate.getDate() + 1);
+  renderDailyOverview();
+});
 
 // ═══════════════════════════════════
 // Operators CRUD

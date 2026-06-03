@@ -94,8 +94,20 @@
         <!-- Overview giornaliera -->
         <div class="daily-overview" id="dailyOverview">
           <div class="daily-overview-header">
-            <h2 class="daily-overview-title">Overview di oggi</h2>
-            <span class="daily-overview-date" id="dailyOverviewDate"></span>
+            <h2 class="daily-overview-title">Overview turni</h2>
+            <div class="daily-overview-nav">
+              <button class="date-nav-arrow" id="overviewPrev">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"/>
+                </svg>
+              </button>
+              <span class="daily-overview-date" id="dailyOverviewDate"></span>
+              <button class="date-nav-arrow" id="overviewNext">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="daily-overview-content" id="dailyOverviewContent"></div>
         </div>
