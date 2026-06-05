@@ -426,6 +426,36 @@ function initAreaDragAndDrop() {
 }
 
 // ═══════════════════════════════════
+// Shift status helper
+// ═══════════════════════════════════
+function getShiftStatus(shift, date) {
+  const now = new Date();
+  const dk_ = dateKey(date);
+  const todayDk = dateKey(now);
+
+  if (!shift.startTime) {
+    if (dk_ < todayDk) return { label: 'Terminato', cls: 'ended',    dotCls: 'gray'  };
+    return               { label: 'Programmato', cls: 'inactive', dotCls: 'gray'  };
+  }
+
+  const startMins = parseInt(shift.startTime.split(':')[0]) * 60 + parseInt(shift.startTime.split(':')[1]);
+  const endMins   = shift.endTime
+    ? parseInt(shift.endTime.split(':')[0]) * 60 + parseInt(shift.endTime.split(':')[1])
+    : 1440;
+
+  if (dk_ < todayDk) return { label: 'Terminato',   cls: 'ended',    dotCls: 'gray'  };
+  if (dk_ > todayDk) return { label: 'Programmato', cls: 'inactive', dotCls: 'gray'  };
+
+  // Today
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  if (nowMins >= startMins && nowMins <= endMins)
+    return { label: 'In corso',    cls: 'active',   dotCls: 'green' };
+  if (nowMins > endMins)
+    return { label: 'Terminato',   cls: 'ended',    dotCls: 'gray'  };
+  return   { label: 'Programmato', cls: 'inactive', dotCls: 'gray'  };
+}
+
+// ═══════════════════════════════════
 // Daily Overview
 // ═══════════════════════════════════
 function renderDailyOverview() {
@@ -434,77 +464,85 @@ function renderDailyOverview() {
   const overviewBox = document.getElementById('dailyOverview');
   if (!container || !dateEl) return;
 
-  // Hide container when inside area detail, but ALWAYS render content
-  // so data is up to date when the user navigates back
   overviewBox.style.display = currentArea ? 'none' : '';
 
   const dk = dateKey(overviewDate);
   dateEl.textContent = DAYS[overviewDate.getDay()] + ' ' + overviewDate.getDate() + ' ' + MONTHS[overviewDate.getMonth()] + ' ' + overviewDate.getFullYear();
 
-  // Collect all areas: fixed + custom
-  const allAreas = ['Staff cucina', 'Staff sala'].concat(customAreas.map(a => a.name));
-  const areaOpsMap = {};
-  allAreas.forEach(a => { areaOpsMap[a] = operators[a] || []; });
+  // All areas: fixed + custom (includes Sicurezza)
+  const allAreas = ['Staff cucina', 'Staff sala', 'Sicurezza'].concat(customAreas.map(a => a.name));
 
-  container.innerHTML = '';
-  let hasAnyShift = false;
+  // Group all shifts by shift name across all areas
+  // shiftGroups: { shiftName: [{ areaName, shift, areaOps }] }
+  const shiftGroups = {};
+  const shiftGroupOrder = [];
 
   allAreas.forEach(areaName => {
     const areaShifts = (shifts[areaName] && shifts[areaName][dk]) || [];
-    if (areaShifts.length === 0) return;
-    hasAnyShift = true;
-
-    const group = document.createElement('div');
-    group.className = 'overview-area-group';
-    group.innerHTML = '<div class="overview-area-name">' + areaName + '</div>';
-
-    const areaOps = areaOpsMap[areaName];
-
+    const areaOps = operators[areaName] || [];
     areaShifts.forEach(shift => {
-      const emoji = getShiftEmoji(shift.name, shift.startTime);
-      const timeStr = (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '');
-
-      // Determine if this shift is currently active (today + within time range)
-      const now = new Date();
-      let isShiftActive = false;
-      if (shift.startTime && sameDay(overviewDate, now)) {
-        const nowMins = now.getHours() * 60 + now.getMinutes();
-        const startMins = parseInt(shift.startTime.split(':')[0]) * 60 + parseInt(shift.startTime.split(':')[1]);
-        const endMins = shift.endTime ? parseInt(shift.endTime.split(':')[0]) * 60 + parseInt(shift.endTime.split(':')[1]) : 1440;
-        isShiftActive = nowMins >= startMins && nowMins <= endMins;
+      if (!shiftGroups[shift.name]) {
+        shiftGroups[shift.name] = [];
+        shiftGroupOrder.push(shift.name);
       }
+      shiftGroups[shift.name].push({ areaName, shift, areaOps });
+    });
+  });
 
-      const card = document.createElement('div');
-      card.className = 'overview-shift-card';
+  container.innerHTML = '';
 
-      // Header with badge + time + goto button
-      const header = document.createElement('div');
-      header.className = 'overview-shift-card-header';
-      header.innerHTML =
-        '<div class="shift-badge">' + emoji + ' ' + shift.name + '</div>' +
-        '<div class="shift-status ' + (isShiftActive ? 'active' : 'inactive') + '">' +
-        '<span class="status-dot ' + (isShiftActive ? 'green' : 'gray') + '"></span>' +
-        (isShiftActive ? 'Attivo' : timeStr) +
-        '</div>';
+  if (shiftGroupOrder.length === 0) {
+    container.innerHTML = '<div class="overview-empty"><p>Nessun turno programmato per questa giornata</p></div>';
+    return;
+  }
+
+  const now = new Date();
+
+  shiftGroupOrder.forEach(shiftName => {
+    const entries = shiftGroups[shiftName];
+
+    // Use first entry for the main header (emoji + status)
+    const firstShift = entries[0].shift;
+    const emoji = getShiftEmoji(firstShift.name, firstShift.startTime);
+    const status = getShiftStatus(firstShift, overviewDate);
+    const isGroupActive = status.cls === 'active';
+
+    const card = document.createElement('div');
+    card.className = 'overview-shift-card';
+
+    // Main header: shift name + status
+    const header = document.createElement('div');
+    header.className = 'overview-shift-card-header';
+    header.innerHTML =
+      '<div class="shift-badge">' + emoji + ' ' + shiftName + '</div>' +
+      '<div class="shift-status ' + status.cls + '">' +
+      '<span class="status-dot ' + status.dotCls + '"></span>' +
+      status.label +
+      '</div>';
+    card.appendChild(header);
+
+    // One sub-section per area
+    entries.forEach(({ areaName, shift, areaOps }) => {
+      const timeStr = (shift.startTime || '') + (shift.endTime ? ' – ' + shift.endTime : '');
+      const areaStatus = getShiftStatus(shift, overviewDate);
+      const isShiftActive = areaStatus.cls === 'active';
+
+      // Area sub-header
+      const subHeader = document.createElement('div');
+      subHeader.className = 'overview-area-subheader';
 
       const gotoBtn = document.createElement('button');
       gotoBtn.className = 'overview-goto-btn';
       gotoBtn.title = 'Vai al turno';
-      gotoBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+      gotoBtn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
       gotoBtn.addEventListener('click', () => {
-        const targetShiftId = shift.id;
         handleAreaClick(areaName);
         switchSubTab('turni');
         selectedDate = new Date(overviewDate);
         renderCalendar();
         renderShifts();
-        // Scroll to the specific shift card
         setTimeout(() => {
-          const shiftCards = document.querySelectorAll('#shiftsArea .shift-card');
-          shiftCards.forEach(sc => {
-            const delBtn = sc.querySelector('.del-shift-btn');
-            if (!delBtn) return;
-            // Match by shift name + time (shift IDs may differ after re-render)
+          document.querySelectorAll('#shiftsArea .shift-card').forEach(sc => {
             const badge = sc.querySelector('.shift-badge');
             if (badge && badge.textContent.includes(shift.name)) {
               sc.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -514,13 +552,17 @@ function renderDailyOverview() {
           });
         }, 150);
       });
-      header.appendChild(gotoBtn);
-      card.appendChild(header);
 
-      // Table body (readonly)
+      subHeader.innerHTML =
+        '<span class="overview-area-label">' + areaName + '</span>' +
+        (timeStr ? '<span class="overview-area-time">' + timeStr + '</span>' : '');
+      subHeader.appendChild(gotoBtn);
+      card.appendChild(subHeader);
+
+      // Table
       if (shift.assignments && shift.assignments.length > 0) {
         const table = document.createElement('table');
-        table.className = 'overview-table';
+        table.className = 'overview-table overview-table--compact';
 
         const thead = document.createElement('thead');
         thead.innerHTML = '<tr><th>Mansione</th><th>Operatori</th><th>Inizio</th><th>Fine</th></tr>';
@@ -530,14 +572,14 @@ function renderDailyOverview() {
         shift.assignments.forEach(a => {
           const opData = areaOps.find(o => o.id === a.operatorId);
           const opName = opData ? opData.name : '(rimosso)';
-          const tr = document.createElement('tr');
           let isOpActive = false;
           if (isShiftActive && a.inizio) {
-            const nowMins2 = now.getHours() * 60 + now.getMinutes();
+            const nowMins = now.getHours() * 60 + now.getMinutes();
             const aStart = parseInt(a.inizio.split(':')[0]) * 60 + parseInt(a.inizio.split(':')[1]);
             const aEnd = a.fine ? parseInt(a.fine.split(':')[0]) * 60 + parseInt(a.fine.split(':')[1]) : 1440;
-            isOpActive = nowMins2 >= aStart && nowMins2 <= aEnd;
+            isOpActive = nowMins >= aStart && nowMins <= aEnd;
           }
+          const tr = document.createElement('tr');
           tr.innerHTML =
             '<td class="mansione-cell"><div class="mansione-name">' + (a.mansione || 'Altro') + '</div></td>' +
             '<td><div class="operator-cell"><span class="op-indicator" style="background:' + (isOpActive ? '#16a34a' : '#d1d5db') + '"></span>' + opName + '</div></td>' +
@@ -548,18 +590,15 @@ function renderDailyOverview() {
         table.appendChild(tbody);
         card.appendChild(table);
       } else {
-        card.innerHTML += '<div class="shift-empty-ops">Nessun operatore assegnato</div>';
+        const empty = document.createElement('div');
+        empty.className = 'shift-empty-ops shift-empty-ops--compact';
+        empty.textContent = 'Nessun operatore assegnato';
+        card.appendChild(empty);
       }
-
-      group.appendChild(card);
     });
 
-    container.appendChild(group);
+    container.appendChild(card);
   });
-
-  if (!hasAnyShift) {
-    container.innerHTML = '<div class="overview-empty"><p>Nessun turno programmato per questa giornata</p></div>';
-  }
 }
 
 // Overview date navigation
@@ -892,22 +931,17 @@ function renderShifts() {
     card.className = 'shift-card';
 
     // Determine status
-    let isActive = false;
-    if (shift.startTime && sameDay(selectedDate, now)) {
-      const nowMins = now.getHours() * 60 + now.getMinutes();
-      const startMins = parseInt(shift.startTime.split(':')[0]) * 60 + parseInt(shift.startTime.split(':')[1]);
-      const endMins = shift.endTime ? parseInt(shift.endTime.split(':')[0]) * 60 + parseInt(shift.endTime.split(':')[1]) : 1440;
-      isActive = nowMins >= startMins && nowMins <= endMins;
-    }
+    const status = getShiftStatus(shift, selectedDate);
+    const isActive = status.cls === 'active';
 
     // Header
     const header = document.createElement('div');
     header.className = 'shift-card-header';
     header.innerHTML =
       '<div class="shift-badge">' + getShiftEmoji(shift.name, shift.startTime) + ' ' + shift.name + '</div>' +
-      '<div class="shift-status ' + (isActive ? 'active' : 'inactive') + '">' +
-      '<span class="status-dot ' + (isActive ? 'green' : 'gray') + '"></span>' +
-      (isActive ? 'Attivo' : (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '')) +
+      '<div class="shift-status ' + status.cls + '">' +
+      '<span class="status-dot ' + status.dotCls + '"></span>' +
+      status.label +
       '</div>';
     card.appendChild(header);
 
