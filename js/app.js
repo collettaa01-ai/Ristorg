@@ -4,17 +4,43 @@
 const db = window.db;
 
 // ═══════════════════════════════════
-// Time select helper (15-min intervals only)
+// Time picker helpers (dual select: 00-23 hours, 00/15/30/45 minutes)
 // ═══════════════════════════════════
-function timeOptionsHTML(selectedValue) {
-  var html = '<option value="">--:--</option>';
-  for (var h = 0; h < 24; h++) {
-    for (var m = 0; m < 60; m += 15) {
-      var val = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
-      html += '<option value="' + val + '"' + (val === selectedValue ? ' selected' : '') + '>' + val + '</option>';
-    }
+function _tpInner(value) {
+  var parts = value ? value.split(':') : ['', ''];
+  var selH = parts[0] || '', selM = parts[1] || '';
+  var hoursOpts = '<option value="">--</option>';
+  for (var i = 0; i < 24; i++) {
+    var v = String(i).padStart(2, '0');
+    hoursOpts += '<option value="' + v + '"' + (v === selH ? ' selected' : '') + '>' + v + '</option>';
   }
-  return html;
+  var minsOpts = '<option value="">--</option>';
+  ['00','15','30','45'].forEach(function(v) {
+    minsOpts += '<option value="' + v + '"' + (v === selM ? ' selected' : '') + '>' + v + '</option>';
+  });
+  return '<select class="tp-h">' + hoursOpts + '</select>' +
+    '<span class="tp-sep">:</span>' +
+    '<select class="tp-m">' + minsOpts + '</select>';
+}
+
+// Render a time picker into an existing container element
+function renderTimePicker(el, value) {
+  el.innerHTML = _tpInner(value || '');
+}
+
+// Read combined HH:MM value from a time-picker container
+function getTimePickerValue(el) {
+  var h = el.querySelector('.tp-h').value;
+  var m = el.querySelector('.tp-m').value;
+  if (!h || !m) return '';
+  return h + ':' + m;
+}
+
+// Build inline HTML for a time-picker div (for innerHTML string construction)
+function timePickerHTML(extraClass, dataAttrs, value) {
+  return '<div class="time-picker' + (extraClass ? ' ' + extraClass : '') + '"' +
+    (dataAttrs ? ' ' + dataAttrs : '') + '>' +
+    _tpInner(value || '') + '</div>';
 }
 
 // ═══════════════════════════════════
@@ -438,6 +464,16 @@ function renderDailyOverview() {
       const emoji = getShiftEmoji(shift.name, shift.startTime);
       const timeStr = (shift.startTime || '') + (shift.endTime ? ' - ' + shift.endTime : '');
 
+      // Determine if this shift is currently active (today + within time range)
+      const now = new Date();
+      let isShiftActive = false;
+      if (shift.startTime && sameDay(overviewDate, now)) {
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const startMins = parseInt(shift.startTime.split(':')[0]) * 60 + parseInt(shift.startTime.split(':')[1]);
+        const endMins = shift.endTime ? parseInt(shift.endTime.split(':')[0]) * 60 + parseInt(shift.endTime.split(':')[1]) : 1440;
+        isShiftActive = nowMins >= startMins && nowMins <= endMins;
+      }
+
       const card = document.createElement('div');
       card.className = 'overview-shift-card';
 
@@ -446,8 +482,9 @@ function renderDailyOverview() {
       header.className = 'overview-shift-card-header';
       header.innerHTML =
         '<div class="shift-badge">' + emoji + ' ' + shift.name + '</div>' +
-        '<div class="shift-status inactive">' +
-        '<span class="status-dot gray"></span>' + timeStr +
+        '<div class="shift-status ' + (isShiftActive ? 'active' : 'inactive') + '">' +
+        '<span class="status-dot ' + (isShiftActive ? 'green' : 'gray') + '"></span>' +
+        (isShiftActive ? 'Attivo' : timeStr) +
         '</div>';
 
       const gotoBtn = document.createElement('button');
@@ -494,9 +531,16 @@ function renderDailyOverview() {
           const opData = areaOps.find(o => o.id === a.operatorId);
           const opName = opData ? opData.name : '(rimosso)';
           const tr = document.createElement('tr');
+          let isOpActive = false;
+          if (isShiftActive && a.inizio) {
+            const nowMins2 = now.getHours() * 60 + now.getMinutes();
+            const aStart = parseInt(a.inizio.split(':')[0]) * 60 + parseInt(a.inizio.split(':')[1]);
+            const aEnd = a.fine ? parseInt(a.fine.split(':')[0]) * 60 + parseInt(a.fine.split(':')[1]) : 1440;
+            isOpActive = nowMins2 >= aStart && nowMins2 <= aEnd;
+          }
           tr.innerHTML =
             '<td class="mansione-cell"><div class="mansione-name">' + (a.mansione || 'Altro') + '</div></td>' +
-            '<td><div class="operator-cell"><span class="op-indicator" style="background:#d1d5db"></span>' + opName + '</div></td>' +
+            '<td><div class="operator-cell"><span class="op-indicator" style="background:' + (isOpActive ? '#16a34a' : '#d1d5db') + '"></span>' + opName + '</div></td>' +
             '<td class="time-cell">' + (a.inizio || '--') + '</td>' +
             '<td class="time-cell">' + (a.fine || '--') + '</td>';
           tbody.appendChild(tr);
@@ -732,15 +776,15 @@ function openShiftModal(shift) {
   document.getElementById('shiftModalTitle').textContent = shift ? 'Modifica turno' : 'Crea turno';
   document.getElementById('shiftModalConfirm').textContent = shift ? 'Salva modifiche' : 'Crea turno';
   shiftNameInput.value = shift ? shift.name : '';
-  shiftStartInput.innerHTML = timeOptionsHTML(shift ? shift.startTime : '');
-  shiftEndInput.innerHTML = timeOptionsHTML(shift ? shift.endTime : '');
+  renderTimePicker(shiftStartInput, shift ? shift.startTime : '');
+  renderTimePicker(shiftEndInput, shift ? shift.endTime : '');
   shiftModalOverlay.classList.add('visible');
   setTimeout(() => shiftNameInput.focus(), 200);
 }
 
 function closeShiftModal() {
   shiftModalOverlay.classList.remove('visible');
-  shiftNameInput.value = ''; shiftStartInput.value = ''; shiftEndInput.value = '';
+  shiftNameInput.value = ''; renderTimePicker(shiftStartInput, ''); renderTimePicker(shiftEndInput, '');
   editingShiftId = null;
 }
 
@@ -759,13 +803,13 @@ document.getElementById('shiftModalConfirm').addEventListener('click', () => {
 
   if (editingShiftId) {
     const s = shifts[currentArea][dk].find(s => s.id === editingShiftId);
-    if (s) { s.name = name; s.startTime = shiftStartInput.value; s.endTime = shiftEndInput.value; }
+    if (s) { s.name = name; s.startTime = getTimePickerValue(shiftStartInput); s.endTime = getTimePickerValue(shiftEndInput); }
   } else {
     shifts[currentArea][dk].push({
       id: Date.now().toString(),
       name,
-      startTime: shiftStartInput.value,
-      endTime: shiftEndInput.value,
+      startTime: getTimePickerValue(shiftStartInput),
+      endTime: getTimePickerValue(shiftEndInput),
       assignments: []
     });
   }
@@ -904,8 +948,8 @@ function renderShifts() {
           '<td class="drag-handle-cell" title="Trascina per riordinare">⠿</td>' +
           '<td class="mansione-cell"><div class="mansione-name">' + (a.mansione || 'Altro') + '</div></td>' +
           '<td><div class="operator-cell"><span class="op-indicator" style="background:' + (isWorking ? '#16a34a' : '#d1d5db') + '"></span>' + opDisplayName + '</div></td>' +
-          '<td class="time-cell"><select class="shift-time-edit time-select" data-assign-id="' + a.id + '" data-field="inizio">' + timeOptionsHTML(a.inizio || '') + '</select></td>' +
-          '<td class="time-cell"><select class="shift-time-edit time-select" data-assign-id="' + a.id + '" data-field="fine">' + timeOptionsHTML(a.fine || '') + '</select></td>' +
+          '<td class="time-cell">' + timePickerHTML('shift-time-edit', 'data-assign-id="' + a.id + '" data-field="inizio"', a.inizio || '') + '</td>' +
+          '<td class="time-cell">' + timePickerHTML('shift-time-edit', 'data-assign-id="' + a.id + '" data-field="fine"', a.fine || '') + '</td>' +
           '<td><button class="icon-btn icon-btn--danger remove-assign-btn" data-aid="' + a.id + '" title="Rimuovi"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>';
 
         // Drag events
@@ -978,16 +1022,18 @@ function renderShifts() {
       });
     });
 
-    // Editable time inputs for operator assignments
-    card.querySelectorAll('.shift-time-edit').forEach(input => {
-      input.addEventListener('change', () => {
-        const assignId = input.dataset.assignId;
-        const field = input.dataset.field;
-        const assign = shift.assignments.find(a => a.id === assignId);
-        if (assign) {
-          assign[field] = input.value;
-          saveShifts();
-        }
+    // Editable time pickers for operator assignments
+    card.querySelectorAll('.shift-time-edit').forEach(picker => {
+      picker.querySelectorAll('select').forEach(sel => {
+        sel.addEventListener('change', () => {
+          const assignId = picker.dataset.assignId;
+          const field = picker.dataset.field;
+          const assign = shift.assignments.find(a => a.id === assignId);
+          if (assign) {
+            assign[field] = getTimePickerValue(picker);
+            saveShifts();
+          }
+        });
       });
     });
 
@@ -1048,15 +1094,15 @@ function openAddOperatorRow(shift, card) {
   row.innerHTML = `
     <select class="inline-op-select">${opOptions}</select>
     <input type="text" class="modal-input inline-mansione" placeholder="Mansione" style="max-width:140px">
-    <select class="modal-input inline-inizio time-select" style="max-width:120px"></select>
-    <select class="modal-input inline-fine time-select" style="max-width:120px"></select>
+    <div class="time-picker inline-inizio"></div>
+    <div class="time-picker inline-fine"></div>
     <button class="btn btn--primary inline-confirm" style="padding:7px 14px;font-size:.82rem">Aggiungi</button>
     <button class="btn btn--secondary inline-cancel" style="padding:7px 14px;font-size:.82rem">Annulla</button>`;
 
   const select = row.querySelector('.inline-op-select');
   const mansioneInput = row.querySelector('.inline-mansione');
-  const inizioInput = row.querySelector('.inline-inizio');
-  const fineInput = row.querySelector('.inline-fine');
+  const inizioEl = row.querySelector('.inline-inizio');
+  const fineEl = row.querySelector('.inline-fine');
 
   function autoFillMansione() {
     const op = availableOps.find(o => o.id === select.value);
@@ -1065,8 +1111,8 @@ function openAddOperatorRow(shift, card) {
   autoFillMansione();
   select.addEventListener('change', autoFillMansione);
 
-  inizioInput.innerHTML = timeOptionsHTML(shift.startTime || '');
-  fineInput.innerHTML = timeOptionsHTML(shift.endTime || '');
+  renderTimePicker(inizioEl, shift.startTime || '');
+  renderTimePicker(fineEl, shift.endTime || '');
 
   row.querySelector('.inline-confirm').addEventListener('click', () => {
     const opId = select.value;
@@ -1075,8 +1121,8 @@ function openAddOperatorRow(shift, card) {
       id: Date.now().toString() + Math.random().toString(36).slice(2,6),
       operatorId: opId,
       mansione,
-      inizio: inizioInput.value,
-      fine: fineInput.value
+      inizio: getTimePickerValue(inizioEl),
+      fine: getTimePickerValue(fineEl)
     });
     saveShifts();
   });
@@ -1376,8 +1422,8 @@ function renderOrari() {
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td><div class="attendance-op-name"><span class="op-indicator"></span>' + opName + '</div></td>' +
-        '<td><select class="attendance-time-input time-select" data-field="inizio" data-shift="' + shift.id + '" data-assign="' + assign.id + '">' + timeOptionsHTML(record.inizio) + '</select></td>' +
-        '<td><select class="attendance-time-input time-select" data-field="fine" data-shift="' + shift.id + '" data-assign="' + assign.id + '">' + timeOptionsHTML(record.fine) + '</select></td>' +
+        '<td>' + timePickerHTML('attendance-time-input', 'data-field="inizio" data-shift="' + shift.id + '" data-assign="' + assign.id + '"', record.inizio) + '</td>' +
+        '<td>' + timePickerHTML('attendance-time-input', 'data-field="fine" data-shift="' + shift.id + '" data-assign="' + assign.id + '"', record.fine) + '</td>' +
         '<td><span class="' + hoursClass + '">' + hoursText + '</span></td>' +
         '<td><span class="attendance-mansione">' + (assign.mansione || '--') + '</span></td>';
 
@@ -1414,31 +1460,33 @@ function renderOrari() {
     });
   });
 
-  // Attach event listeners to time inputs
-  container.querySelectorAll('.attendance-time-input').forEach(input => {
-    input.addEventListener('change', () => {
-      const shiftId = input.dataset.shift;
-      const assignId = input.dataset.assign;
-      const field = input.dataset.field;
-      const attKey = shiftId + '_' + assignId;
+  // Attach event listeners to time pickers
+  container.querySelectorAll('.attendance-time-input').forEach(picker => {
+    picker.querySelectorAll('select').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const shiftId = picker.dataset.shift;
+        const assignId = picker.dataset.assign;
+        const field = picker.dataset.field;
+        const attKey = shiftId + '_' + assignId;
 
-      if (!attendance[currentArea]) attendance[currentArea] = {};
-      if (!attendance[currentArea][dk]) attendance[currentArea][dk] = {};
-      if (!attendance[currentArea][dk][attKey]) attendance[currentArea][dk][attKey] = { inizio: '', fine: '' };
+        if (!attendance[currentArea]) attendance[currentArea] = {};
+        if (!attendance[currentArea][dk]) attendance[currentArea][dk] = {};
+        if (!attendance[currentArea][dk][attKey]) attendance[currentArea][dk][attKey] = { inizio: '', fine: '' };
 
-      attendance[currentArea][dk][attKey][field] = input.value;
+        attendance[currentArea][dk][attKey][field] = getTimePickerValue(picker);
 
-      // Update hours display in the same row
-      const row = input.closest('tr');
-      const rec = attendance[currentArea][dk][attKey];
-      const mins = calcHours(rec.inizio, rec.fine);
-      const hoursSpan = row.querySelector('.attendance-hours');
-      if (hoursSpan) {
-        hoursSpan.textContent = formatHours(mins, centesimalMode);
-        hoursSpan.className = mins === null ? 'attendance-hours empty' : 'attendance-hours';
-      }
+        // Update hours display in the same row
+        const row = picker.closest('tr');
+        const rec = attendance[currentArea][dk][attKey];
+        const mins = calcHours(rec.inizio, rec.fine);
+        const hoursSpan = row.querySelector('.attendance-hours');
+        if (hoursSpan) {
+          hoursSpan.textContent = formatHours(mins, centesimalMode);
+          hoursSpan.className = mins === null ? 'attendance-hours empty' : 'attendance-hours';
+        }
 
-      saveAttendance();
+        saveAttendance();
+      });
     });
   });
 }

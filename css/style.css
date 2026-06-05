@@ -1225,9 +1225,24 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Time select (shared style for all time dropdowns) ── */
-.time-select {
-  padding: 5px 8px;
+/* ── Time picker (dual select: hours + minutes) ── */
+.time-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.time-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.time-picker .tp-h,
+.time-picker .tp-m,
+.time-picker-wrap .tp-h,
+.time-picker-wrap .tp-m {
+  padding: 5px 6px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-xs);
   font-size: .88rem;
@@ -1237,16 +1252,40 @@ body {
   outline: none;
   transition: border-color var(--transition);
   cursor: pointer;
-  min-width: 90px;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: center;
 }
 
-.time-select:focus {
+.time-picker .tp-h,
+.time-picker-wrap .tp-h {
+  width: 52px;
+}
+
+.time-picker .tp-m,
+.time-picker-wrap .tp-m {
+  width: 52px;
+}
+
+.time-picker .tp-h:focus,
+.time-picker .tp-m:focus,
+.time-picker-wrap .tp-h:focus,
+.time-picker-wrap .tp-m:focus {
   border-color: var(--accent);
   background: var(--surface);
 }
 
+.tp-sep {
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+  line-height: 1;
+}
+
+/* keep backward-compat class (no longer a select, but may still be styled) */
 .shift-time-edit {
-  min-width: 90px;
+  /* wrapper div, no min-width needed */
 }
 
 /* ── Shift empty state (no operators) ── */
