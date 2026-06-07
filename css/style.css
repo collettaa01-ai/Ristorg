@@ -6,18 +6,19 @@
 
 :root {
   --sidebar-w: 260px;
+  --sidebar-w-collapsed: 64px;
   --topbar-h: 64px;
 
-  /* Palette — warm neutrals + indigo accent */
-  --bg: #f6f6fa;
+  /* Palette — black/white + orange accent */
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-raised: #fafafc;
-  --text: #1c1c2e;
-  --text-secondary: #6e7191;
-  --accent: #4f46e5;
-  --accent-light: #eef2ff;
-  --accent-hover: #4338ca;
-  --border: #e5e7ef;
+  --surface-raised: #fafafa;
+  --text: #111111;
+  --text-secondary: #666666;
+  --accent: #f97316;
+  --accent-light: #fff7ed;
+  --accent-hover: #ea6c05;
+  --border: #e5e7eb;
 
   /* Semantic colors */
   --success: #16a34a;
@@ -66,7 +67,7 @@ html {
 
 body {
   font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
+  background: #f2f2f2;
   color: var(--text);
   display: flex;
   min-height: 100vh;
@@ -85,62 +86,94 @@ body {
   top: 0;
   left: 0;
   z-index: 100;
-  transition: transform var(--transition);
+  transition: width var(--transition);
+  overflow: hidden;
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 20px 22px;
+  gap: 10px;
+  padding: 18px 16px;
   border-bottom: 1px solid var(--border);
+  min-height: 64px;
+  flex-shrink: 0;
 }
 
 .sidebar-logo {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   background: var(--accent);
   color: #fff;
-  border-radius: 10px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   flex-shrink: 0;
 }
 
 .sidebar-title {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  flex: 1;
+  transition: opacity var(--transition);
 }
 
+.sidebar-collapse-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+
+.sidebar-collapse-btn:hover {
+  background: #f5f5f5;
+  color: var(--text);
+}
+
+.sidebar-collapse-btn .icon-collapsed { display: none; }
+
 .sidebar-nav {
-  padding: 12px 10px;
+  padding: 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
+  overflow: hidden;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: .93rem;
+  font-size: .9rem;
   font-weight: 500;
   transition: all var(--transition);
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .nav-item:hover {
-  background: var(--bg);
+  background: #f5f5f5;
   color: var(--text);
 }
 
@@ -149,16 +182,69 @@ body {
   color: var(--accent);
 }
 
+.nav-item.active .nav-icon {
+  stroke: var(--accent);
+}
+
 .nav-icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  stroke: var(--text-secondary);
+  transition: stroke var(--transition);
+}
+
+.nav-item:hover .nav-icon {
+  stroke: var(--text);
 }
 
 .nav-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: opacity var(--transition);
+}
+
+/* ── Collapsed sidebar ── */
+body.sidebar-collapsed .sidebar {
+  width: var(--sidebar-w-collapsed);
+}
+
+body.sidebar-collapsed .main-content {
+  margin-left: var(--sidebar-w-collapsed);
+}
+
+body.sidebar-collapsed .sidebar-title {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .nav-label {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .sidebar-collapse-btn .icon-open { display: none; }
+body.sidebar-collapsed .sidebar-collapse-btn .icon-collapsed { display: flex; }
+
+body.sidebar-collapsed .sidebar-nav {
+  padding: 10px 8px;
+}
+
+body.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 10px;
+}
+
+body.sidebar-collapsed .sidebar-header {
+  justify-content: center;
+}
+
+body.sidebar-collapsed .sidebar-collapse-btn {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 /* ── Main content ── */
@@ -168,6 +254,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: margin-left var(--transition);
 }
 
 /* ── Top bar ── */
@@ -286,7 +373,7 @@ body {
 }
 
 .area-card:hover {
-  border-color: var(--accent);
+  border-color: #111;
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
@@ -299,8 +386,8 @@ body {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: var(--accent-light);
-  color: var(--accent);
+  background: #f5f5f5;
+  color: #111;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -368,8 +455,8 @@ body {
 }
 
 .area-card--add:hover {
-  border-color: var(--accent);
-  background: var(--accent-light);
+  border-color: #111;
+  background: #f5f5f5;
 }
 
 .area-icon--add {
@@ -378,7 +465,7 @@ body {
 }
 
 .area-card--add:hover .area-icon--add {
-  color: var(--accent);
+  color: #111;
 }
 
 .area-card--add .area-name {
@@ -387,7 +474,7 @@ body {
 }
 
 .area-card--add:hover .area-name {
-  color: var(--accent);
+  color: #111;
 }
 
 /* Custom area card (created by user) */
@@ -499,7 +586,7 @@ body {
   justify-content: space-between;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(135deg, #f8faf8 0%, #fafaf5 100%);
+  background: #fafafa;
 }
 
 .overview-goto-btn {
@@ -518,9 +605,9 @@ body {
 }
 
 .overview-goto-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
+  border-color: #111;
+  color: #111;
+  background: #f5f5f5;
 }
 
 /* Overview area sub-header (new grouped layout) */
@@ -536,7 +623,7 @@ body {
 .overview-area-label {
   font-size: .78rem;
   font-weight: 700;
-  color: var(--accent);
+  color: #111;
   text-transform: uppercase;
   letter-spacing: .5px;
   flex: 1;
@@ -567,7 +654,7 @@ body {
   text-transform: uppercase;
   letter-spacing: .6px;
   color: var(--text-secondary);
-  background: var(--surface);
+  background: #f5f5f5;
   border-bottom: 1px solid var(--border);
 }
 
@@ -649,8 +736,8 @@ body {
 }
 
 .back-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: #111;
+  color: #111;
 }
 
 .area-detail-title {
@@ -702,6 +789,10 @@ body {
 
 .sub-tab.active::after {
   background: var(--accent);
+}
+
+.sub-tab:hover {
+  color: var(--text);
 }
 
 /* ── Tab panels ── */
@@ -782,9 +873,9 @@ body {
 }
 
 .icon-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
+  border-color: #111;
+  color: #111;
+  background: #f5f5f5;
 }
 
 .icon-btn--danger:hover {
@@ -939,7 +1030,7 @@ body {
 }
 
 .modal-input:focus {
-  border-color: var(--accent);
+  border-color: #111;
 }
 
 .modal-input::placeholder {
@@ -977,6 +1068,7 @@ body {
 .btn--primary {
   background: var(--accent);
   color: #fff;
+  font-weight: 600;
 }
 
 .btn--primary:hover {
@@ -987,50 +1079,20 @@ body {
 .turni-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
   gap: 14px;
   margin-bottom: 20px;
 }
 
 .view-selector {
-  display: flex;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.view-btn {
-  padding: 8px 18px;
-  background: none;
-  border: none;
-  font-family: inherit;
-  font-size: .85rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition);
-  border-right: 1px solid var(--border);
-}
-
-.view-btn:last-child {
-  border-right: none;
-}
-
-.view-btn:hover {
-  background: var(--bg);
-}
-
-.view-btn.active {
-  background: var(--accent);
-  color: #fff;
+  display: none; /* rimosso — la vista è sempre giornaliera */
 }
 
 .date-nav {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
 }
 
 .date-nav-arrow {
@@ -1045,28 +1107,55 @@ body {
   align-items: center;
   justify-content: center;
   transition: all var(--transition);
+  flex-shrink: 0;
 }
 
 .date-nav-arrow:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: #111;
+  color: #111;
+}
+
+.date-cal-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.date-cal-btn:hover {
+  border-color: #111;
+  color: #111;
+}
+
+.date-cal-input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  cursor: pointer;
 }
 
 .date-nav-label {
-  font-size: .95rem;
-  font-weight: 600;
-  min-width: 200px;
+  font-size: 1rem;
+  font-weight: 700;
+  min-width: 220px;
   text-align: center;
+  letter-spacing: -.2px;
 }
 
 .turni-actions {
-  margin-bottom: 20px;
-}
-
-.turni-actions .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: none; /* bottone spostato nella toolbar */
 }
 
 /* ── Calendar area ── */
@@ -1101,17 +1190,17 @@ body {
 }
 
 .cal-day:hover {
-  border-color: var(--accent);
+  border-color: #111;
 }
 
 .cal-day.today {
-  background: var(--accent-light);
+  background: #fff7ed;
   color: var(--accent);
   font-weight: 700;
 }
 
 .cal-day.selected {
-  background: var(--accent);
+  background: #111;
   color: #fff;
 }
 
@@ -1126,6 +1215,10 @@ body {
   border-radius: 50%;
   background: var(--accent);
   margin: 4px auto 0;
+}
+
+.cal-day.selected .shift-dot {
+  background: #fff;
 }
 
 .cal-day.selected .shift-dot {
@@ -1160,7 +1253,7 @@ body {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(135deg, #f8faf8 0%, #fafaf5 100%);
+  background: #fafafa;
 }
 
 .shift-badge {
@@ -1169,10 +1262,11 @@ body {
   gap: 8px;
   padding: 6px 16px;
   border-radius: 20px;
-  background: #fef3c7;
-  color: #92400e;
+  background: #f0f0f0;
+  color: #111;
   font-weight: 600;
   font-size: .9rem;
+  border: 1px solid #e0e0e0;
 }
 
 .shift-status {
@@ -1226,7 +1320,7 @@ body {
   text-transform: uppercase;
   letter-spacing: .6px;
   color: var(--text-secondary);
-  background: var(--bg);
+  background: #f5f5f5;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1326,7 +1420,7 @@ body {
 .time-picker .tp-m:focus,
 .time-picker-wrap .tp-h:focus,
 .time-picker-wrap .tp-m:focus {
-  border-color: var(--accent);
+  border-color: #111;
   background: var(--surface);
 }
 
@@ -1379,8 +1473,8 @@ body {
 }
 
 .shift-footer-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: #111;
+  color: #111;
 }
 
 .shift-footer-btn--danger:hover {
@@ -1419,7 +1513,7 @@ body {
 }
 
 .op-dropdown-item:hover {
-  background: var(--accent-light);
+  background: #f5f5f5;
 }
 
 .op-dropdown-item .op-dd-name {
@@ -1438,7 +1532,7 @@ body {
   gap: 10px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--border);
-  background: var(--accent-light);
+  background: #f9f9f9;
 }
 
 .add-op-row .modal-input {
@@ -1514,11 +1608,11 @@ body {
 
 .shift-table tbody tr.row-dragging {
   opacity: .4;
-  background: var(--accent-light);
+  background: #f5f5f5;
 }
 
 .shift-table tbody tr.drag-over {
-  border-top: 2px solid var(--accent);
+  border-top: 2px solid #111;
 }
 
 /* ── Week actions (copy week) ── */
@@ -1576,37 +1670,13 @@ body {
 .orari-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
   gap: 14px;
   margin-bottom: 20px;
 }
 
-/* ── Orari view buttons ── */
+/* ── Orari view buttons (hidden) ── */
 .orari-view-btn {
-  padding: 8px 18px;
-  background: none;
-  border: none;
-  font-family: inherit;
-  font-size: .85rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition);
-  border-right: 1px solid var(--border);
-}
-
-.orari-view-btn:last-child {
-  border-right: none;
-}
-
-.orari-view-btn:hover {
-  background: var(--bg);
-}
-
-.orari-view-btn.active {
-  background: var(--accent);
-  color: #fff;
+  display: none;
 }
 
 /* ── Date nav arrow disabled ── */
@@ -1648,8 +1718,8 @@ body {
 }
 
 .ore-dropdown-btn:hover {
-  background: var(--border);
-  color: var(--accent);
+  background: #f0f0f0;
+  color: #111;
 }
 
 .ore-dropdown {
@@ -1678,12 +1748,12 @@ body {
 }
 
 .ore-dropdown-item:hover {
-  background: var(--accent-light);
+  background: #f5f5f5;
 }
 
 .ore-dropdown-item.active {
   color: var(--accent);
-  background: var(--accent-light);
+  background: #fff7ed;
 }
 
 /* ── Orari attendance table ── */
@@ -1696,7 +1766,7 @@ body {
   align-items: center;
   gap: 10px;
   padding: 12px 20px;
-  background: linear-gradient(135deg, #f8faf8 0%, #fafaf5 100%);
+  background: #fafafa;
   border: 1px solid var(--border);
   border-radius: var(--radius) var(--radius) 0 0;
 }
@@ -1707,10 +1777,11 @@ body {
   gap: 8px;
   padding: 5px 14px;
   border-radius: 20px;
-  background: #fef3c7;
-  color: #92400e;
+  background: #f0f0f0;
+  color: #111;
   font-weight: 600;
   font-size: .88rem;
+  border: 1px solid #e0e0e0;
 }
 
 .orari-shift-time {
@@ -1738,7 +1809,7 @@ body {
   text-transform: uppercase;
   letter-spacing: .6px;
   color: var(--text-secondary);
-  background: var(--bg);
+  background: #f5f5f5;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1809,7 +1880,7 @@ body {
 
 /* ── Focus states ── */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid #111;
   outline-offset: 2px;
   border-radius: var(--radius-xs);
 }
@@ -1823,15 +1894,15 @@ button:focus-visible,
 .orari-view-btn:focus-visible,
 .date-nav-arrow:focus-visible,
 .shift-footer-btn:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid #111;
   outline-offset: 2px;
 }
 
 .modal-input:focus-visible,
 .attendance-time-input:focus-visible {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-light);
+  border-color: #111;
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
 }
 
 /* ── Toast notifications ── */

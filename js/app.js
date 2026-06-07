@@ -250,13 +250,23 @@ const addAreaCard = document.getElementById('addAreaCard');
 const sectionTitles = { dipendenti: 'Gestione dipendenti', prenotazioni: 'Prenotazioni' };
 
 // ═══════════════════════════════════
-// Sidebar toggle
+// Sidebar toggle (mobile overlay)
 // ═══════════════════════════════════
 sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
 document.addEventListener('click', (e) => {
   if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== sidebarToggle)
     sidebar.classList.remove('open');
 });
+
+// ── Sidebar collapse/expand (desktop) ──
+const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+if (sidebarCollapseBtn) {
+  sidebarCollapseBtn.addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-collapsed');
+    const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+    sidebarCollapseBtn.title = isCollapsed ? 'Espandi menu' : 'Chiudi menu';
+  });
+}
 
 // ═══════════════════════════════════
 // Navigation
@@ -1087,28 +1097,33 @@ function renderShifts() {
   });
 }
 
+// Icone SVG minimali nere per tipologia di turno
+const _shiftIcons = {
+  coffee: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:1px"><path d="M4 10h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V10z"/><path d="M16 12h2a2 2 0 1 1 0 4h-2"/><path d="M8 5V3M12 5V3"/></svg>',
+  sun:    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:middle;margin-right:1px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+  moon:   '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:1px"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  clock:  '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:middle;margin-right:1px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>'
+};
+
 function getShiftEmoji(name, startTime) {
-  const n = name.toLowerCase();
+  const n = (name || '').toLowerCase();
   // Name-based detection
-  if (n.includes('colazione')) return '☕';
-  if (n.includes('brunch')) return '☕';
-  if (n.includes('pranzo') || n.includes('mattina')) return '☀️';
-  if (n.includes('aperitivo')) return '🍹';
-  if (n.includes('cena')) return '🌙';
-  if (n.includes('serata') || n.includes('discoteca') || n.includes('afterparty') || n.includes('after party')) return '🍸';
-  if (n.includes('notte')) return '🌃';
-  // Time-based fallback
-  if (startTime) {
+  let type = '';
+  if (n.includes('colazione') || n.includes('brunch')) type = 'coffee';
+  else if (n.includes('pranzo') || n.includes('mattina')) type = 'sun';
+  else if (n.includes('cena') || n.includes('notte')) type = 'moon';
+  else if (n.includes('aperitivo') || n.includes('serata') || n.includes('discoteca') || n.includes('afterparty') || n.includes('after party')) type = 'moon';
+  else if (startTime) {
+    // Time-based fallback
     const parts = startTime.split(':');
     const mins = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-    if (mins >= 360 && mins < 690) return '☕';       // 06:00-11:29 colazione
-    if (mins >= 690 && mins < 930) return '☀️';  // 11:30-15:29 pranzo
-    if (mins >= 930 && mins < 1140) return '🍹';      // 15:30-18:59 aperitivo
-    if (mins >= 1140 && mins < 1260) return '🌙';     // 19:00-20:59 cena
-    if (mins >= 1260) return '🍸';                     // 21:00+ serata
-    if (mins < 360) return '🍸';                       // 00:00-05:59 afterparty
+    if (mins >= 360 && mins < 690) type = 'coffee';      // 06:00-11:29 colazione
+    else if (mins >= 690 && mins < 930) type = 'sun';    // 11:30-15:29 pranzo
+    else if (mins >= 930 && mins < 1140) type = 'sun';   // 15:30-18:59 aperitivo (sole tramontante)
+    else if (mins >= 1140) type = 'moon';                // 19:00+ cena/serata
+    else type = 'moon';                                   // 00:00-05:59 afterparty
   }
-  return '🕒';
+  return _shiftIcons[type || 'clock'];
 }
 
 // ═══════════════════════════════════
@@ -1787,6 +1802,34 @@ document.addEventListener('keydown', (e) => {
     copyWeekOverlay.classList.remove('visible');
   }
 });
+
+// ═══════════════════════════════════
+// Calendar date pickers (icona 📅 nelle toolbar)
+// ═══════════════════════════════════
+const dateCalInput = document.getElementById('dateCalInput');
+const orariDateCalInput = document.getElementById('orariDateCalInput');
+
+if (dateCalInput) {
+  dateCalInput.addEventListener('change', () => {
+    if (!dateCalInput.value) return;
+    const parts = dateCalInput.value.split('-');
+    selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    renderCalendar();
+    renderShifts();
+    dateCalInput.value = '';
+  });
+}
+
+if (orariDateCalInput) {
+  orariDateCalInput.addEventListener('change', () => {
+    if (!orariDateCalInput.value) return;
+    const parts = orariDateCalInput.value.split('-');
+    orariDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    renderOrariCalendar();
+    renderOrari();
+    orariDateCalInput.value = '';
+  });
+}
 
 // ═══════════════════════════════════
 // Initialize: start Firestore listeners

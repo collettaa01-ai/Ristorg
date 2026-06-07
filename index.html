@@ -11,6 +11,16 @@
     <div class="sidebar-header">
       <span class="sidebar-logo">R</span>
       <span class="sidebar-title">Ristorg</span>
+      <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Chiudi menu">
+        <!-- aperto: freccia sinistra -->
+        <svg class="icon-open" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <!-- chiuso: freccia destra -->
+        <svg class="icon-collapsed" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
     </div>
     <nav class="sidebar-nav">
       <a href="#" class="nav-item active" data-section="dipendenti">
@@ -167,11 +177,6 @@
           <!-- Tab: Turni -->
           <div class="tab-panel" id="tab-turni" style="display:none;">
             <div class="turni-toolbar">
-              <div class="view-selector">
-                <button class="view-btn active" data-view="day">Giorno</button>
-                <button class="view-btn" data-view="week">Settimana</button>
-                <button class="view-btn" data-view="month">Mese</button>
-              </div>
               <div class="date-nav">
                 <button class="date-nav-arrow" id="datePrev">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -179,23 +184,31 @@
                   </svg>
                 </button>
                 <span class="date-nav-label" id="dateLabel"></span>
+                <button class="date-cal-btn" id="dateCalBtn" title="Scegli data">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <input type="date" id="dateCalInput" class="date-cal-input" tabindex="-1">
+                </button>
                 <button class="date-nav-arrow" id="dateNext">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
                 </button>
               </div>
-            </div>
-            <div id="calendarArea"></div>
-            <div id="weekActionsArea"></div>
-            <div class="turni-actions">
               <button class="btn btn--primary" id="createShiftBtn">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
                 Crea turno
               </button>
             </div>
+            <div id="calendarArea"></div>
+            <div id="weekActionsArea"></div>
+            <div class="turni-actions" style="display:none;"></div>
             <div id="shiftsArea"></div>
           </div>
 
@@ -224,11 +237,6 @@
           <!-- Tab: Orari -->
           <div class="tab-panel" id="tab-orari" style="display:none;">
             <div class="orari-toolbar">
-              <div class="view-selector">
-                <button class="orari-view-btn active" data-oview="day">Giorno</button>
-                <button class="orari-view-btn" data-oview="week">Settimana</button>
-                <button class="orari-view-btn" data-oview="month">Mese</button>
-              </div>
               <div class="date-nav">
                 <button class="date-nav-arrow" id="orariDatePrev">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -236,6 +244,15 @@
                   </svg>
                 </button>
                 <span class="date-nav-label" id="orariDateLabel"></span>
+                <button class="date-cal-btn" id="orariDateCalBtn" title="Scegli data">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <input type="date" id="orariDateCalInput" class="date-cal-input" tabindex="-1">
+                </button>
                 <button class="date-nav-arrow" id="orariDateNext">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
