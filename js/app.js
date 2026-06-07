@@ -1048,11 +1048,21 @@ function renderShifts() {
 
     card.appendChild(footer);
 
-    // Remove assignment buttons
+    // Remove assignment buttons (with confirmation)
     card.querySelectorAll('.remove-assign-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        shift.assignments = shift.assignments.filter(a => a.id !== btn.dataset.aid);
-        saveShifts();
+        const aid = btn.dataset.aid;
+        const assign = shift.assignments.find(a => a.id === aid);
+        const areaOps = operators[currentArea] || [];
+        const op = areaOps.find(o => o.id === (assign ? assign.operatorId : ''));
+        const opName = op ? op.name : (assign ? assign.operatorId : 'operatore');
+        openGenericDeleteConfirm(
+          'Sei sicuro di voler rimuovere "' + opName + '" dal turno "' + shift.name + '"?',
+          () => {
+            shift.assignments = shift.assignments.filter(a => a.id !== aid);
+            saveShifts();
+          }
+        );
       });
     });
 
