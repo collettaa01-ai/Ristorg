@@ -1804,32 +1804,130 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ═══════════════════════════════════
-// Calendar date pickers (icona 📅 nelle toolbar)
+// Calendar dropdown (icona 📅 nelle toolbar)
 // ═══════════════════════════════════
-const dateCalInput = document.getElementById('dateCalInput');
-const orariDateCalInput = document.getElementById('orariDateCalInput');
+function renderCalDropdown(container, viewDate, selectedDt, options) {
+  // options: { blockFuture: bool, onSelect: fn(date), onNav: fn(newViewDate) }
+  const year = viewDate.getFullYear(), month = viewDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7; // Monday-first
+  const todayK = dateKey(new Date());
+  const selK = dateKey(selectedDt);
 
-if (dateCalInput) {
-  dateCalInput.addEventListener('change', () => {
-    if (!dateCalInput.value) return;
-    const parts = dateCalInput.value.split('-');
-    selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    renderCalendar();
-    renderShifts();
-    dateCalInput.value = '';
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+  // Can go forward? For Orari, block if already at current month
+  let canFwd = true;
+  if (options.blockFuture) {
+    const now = new Date();
+    canFwd = year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth());
+  }
+
+  let html = '<div class="cal-dd-header">';
+  html += '<button class="cal-dd-arrow" data-dir="prev"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
+  html += '<span class="cal-dd-title">' + monthNames[month] + ' ' + year + '</span>';
+  html += '<button class="cal-dd-arrow' + (canFwd ? '' : ' disabled') + '" data-dir="next"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>';
+  html += '</div>';
+
+  html += '<div class="cal-dd-grid">';
+  ['Lu','Ma','Me','Gi','Ve','Sa','Do'].forEach(d => { html += '<div class="cal-dd-dayname">' + d + '</div>'; });
+
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - startOffset);
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const dk = dateKey(d);
+    const isOther = d.getMonth() !== month;
+    const isToday = dk === todayK;
+    const isSel = dk === selK;
+    const isFuture = options.blockFuture && dk > todayK;
+    const hasShifts = (currentArea && shifts[currentArea] && shifts[currentArea][dk] && shifts[currentArea][dk].length > 0);
+
+    let cls = 'cal-dd-day';
+    if (isOther) cls += ' other-month';
+    if (isToday) cls += ' today';
+    if (isSel) cls += ' selected';
+    if (isFuture) cls += ' disabled';
+
+    html += '<div class="' + cls + '" data-date="' + dk + '">' + d.getDate() +
+      (hasShifts && !isFuture ? '<span class="shift-dot"></span>' : '') + '</div>';
+  }
+  html += '</div>';
+
+  container.innerHTML = html;
+  container.style.display = 'block';
+
+  // Arrows navigation
+  container.querySelectorAll('.cal-dd-arrow:not(.disabled)').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dir = btn.dataset.dir;
+      const newDate = new Date(year, month + (dir === 'next' ? 1 : -1), 1);
+      renderCalDropdown(container, newDate, selectedDt, options);
+    });
+  });
+
+  // Day click
+  container.querySelectorAll('.cal-dd-day:not(.disabled)').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parts = el.dataset.date.split('-');
+      const picked = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      container.style.display = 'none';
+      options.onSelect(picked);
+    });
   });
 }
 
-if (orariDateCalInput) {
-  orariDateCalInput.addEventListener('change', () => {
-    if (!orariDateCalInput.value) return;
-    const parts = orariDateCalInput.value.split('-');
-    orariDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-    renderOrariCalendar();
-    renderOrari();
-    orariDateCalInput.value = '';
+// ── Turni calendar dropdown ──
+const turniCalDropdown = document.getElementById('turniCalDropdown');
+document.getElementById('dateCalBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (turniCalDropdown.style.display === 'block') {
+    turniCalDropdown.style.display = 'none';
+    return;
+  }
+  // Close the other dropdown if open
+  document.getElementById('orariCalDropdown').style.display = 'none';
+  renderCalDropdown(turniCalDropdown, new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1), selectedDate, {
+    blockFuture: false,
+    onSelect: (d) => {
+      selectedDate = d;
+      renderCalendar();
+      renderShifts();
+    }
   });
-}
+});
+
+// ── Orari calendar dropdown ──
+const orariCalDropdown = document.getElementById('orariCalDropdown');
+document.getElementById('orariDateCalBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (orariCalDropdown.style.display === 'block') {
+    orariCalDropdown.style.display = 'none';
+    return;
+  }
+  // Close the other dropdown if open
+  turniCalDropdown.style.display = 'none';
+  renderCalDropdown(orariCalDropdown, new Date(orariDate.getFullYear(), orariDate.getMonth(), 1), orariDate, {
+    blockFuture: true,
+    onSelect: (d) => {
+      orariDate = d;
+      renderOrariCalendar();
+      renderOrari();
+    }
+  });
+});
+
+// Close dropdowns on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.date-cal-wrap')) {
+    turniCalDropdown.style.display = 'none';
+    orariCalDropdown.style.display = 'none';
+  }
+});
 
 // ═══════════════════════════════════
 // Initialize: start Firestore listeners
