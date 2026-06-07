@@ -116,6 +116,7 @@ function refreshCurrentView() {
     if (activeTab.dataset.tab === 'operatori') renderOperators();
     if (activeTab.dataset.tab === 'turni') { renderCalendar(); renderShifts(); }
     if (activeTab.dataset.tab === 'orari') { renderOrariCalendar(); renderOrari(); }
+    if (activeTab.dataset.tab === 'riepilogo') { renderRiepilogoCalendar(); renderRiepilogo(); }
   }
 }
 
@@ -316,6 +317,7 @@ function switchSubTab(tab) {
   if (tab === 'turni') { renderCalendar(); renderShifts(); }
   if (tab === 'operatori') renderOperators();
   if (tab === 'orari') { renderOrariCalendar(); renderOrari(); }
+  if (tab === 'riepilogo') { renderRiepilogoCalendar(); renderRiepilogo(); }
 }
 
 document.querySelectorAll('.sub-tab').forEach(tab => {
@@ -434,8 +436,8 @@ function getShiftStatus(shift, date) {
   const todayDk = dateKey(now);
 
   if (!shift.startTime) {
-    if (dk_ < todayDk) return { label: 'Terminato', cls: 'ended',    dotCls: 'gray'  };
-    return               { label: 'Programmato', cls: 'inactive', dotCls: 'gray'  };
+    if (dk_ < todayDk) return { label: 'Terminato',   cls: 'ended',     dotCls: 'gray'  };
+    return               { label: 'Programmato', cls: 'scheduled', dotCls: 'amber' };
   }
 
   const startMins = parseInt(shift.startTime.split(':')[0]) * 60 + parseInt(shift.startTime.split(':')[1]);
@@ -443,16 +445,16 @@ function getShiftStatus(shift, date) {
     ? parseInt(shift.endTime.split(':')[0]) * 60 + parseInt(shift.endTime.split(':')[1])
     : 1440;
 
-  if (dk_ < todayDk) return { label: 'Terminato',   cls: 'ended',    dotCls: 'gray'  };
-  if (dk_ > todayDk) return { label: 'Programmato', cls: 'inactive', dotCls: 'gray'  };
+  if (dk_ < todayDk) return { label: 'Terminato',   cls: 'ended',     dotCls: 'gray'  };
+  if (dk_ > todayDk) return { label: 'Programmato', cls: 'scheduled', dotCls: 'amber' };
 
   // Today
   const nowMins = now.getHours() * 60 + now.getMinutes();
   if (nowMins >= startMins && nowMins <= endMins)
-    return { label: 'In corso',    cls: 'active',   dotCls: 'green' };
+    return { label: 'In corso',    cls: 'active',    dotCls: 'green' };
   if (nowMins > endMins)
-    return { label: 'Terminato',   cls: 'ended',    dotCls: 'gray'  };
-  return   { label: 'Programmato', cls: 'inactive', dotCls: 'gray'  };
+    return { label: 'Terminato',   cls: 'ended',     dotCls: 'gray'  };
+  return   { label: 'Programmato', cls: 'scheduled', dotCls: 'amber' };
 }
 
 // ═══════════════════════════════════
@@ -1531,6 +1533,242 @@ function renderOrari() {
 
         saveAttendance();
       });
+    });
+  });
+}
+
+// ═══════════════════════════════════
+// Riepilogo ore
+// ═══════════════════════════════════
+let riepilogoView = 'month';
+let riepilogoDate = new Date();
+let riepilogoCentesimal = false;
+
+document.querySelectorAll('.riepilogo-view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.riepilogo-view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    riepilogoView = btn.dataset.rview;
+    renderRiepilogoCalendar();
+    renderRiepilogo();
+  });
+});
+
+document.getElementById('riepilogoPrev').addEventListener('click', () => {
+  if (riepilogoView === 'day')        riepilogoDate.setDate(riepilogoDate.getDate() - 1);
+  else if (riepilogoView === 'week')  riepilogoDate.setDate(riepilogoDate.getDate() - 7);
+  else                                riepilogoDate.setMonth(riepilogoDate.getMonth() - 1);
+  renderRiepilogoCalendar(); renderRiepilogo();
+});
+
+document.getElementById('riepilogoNext').addEventListener('click', () => {
+  if (!canRiepilogoGoForward()) return;
+  if (riepilogoView === 'day')        riepilogoDate.setDate(riepilogoDate.getDate() + 1);
+  else if (riepilogoView === 'week')  riepilogoDate.setDate(riepilogoDate.getDate() + 7);
+  else                                riepilogoDate.setMonth(riepilogoDate.getMonth() + 1);
+  const today = new Date();
+  if (dateKey(riepilogoDate) > dateKey(today)) riepilogoDate = new Date(today);
+  renderRiepilogoCalendar(); renderRiepilogo();
+});
+
+function canRiepilogoGoForward() {
+  const today = new Date();
+  if (riepilogoView === 'day')   return dateKey(riepilogoDate) < dateKey(today);
+  if (riepilogoView === 'week') {
+    const curWeek = getWeekStart(riepilogoDate);
+    const todayWeek = getWeekStart(today);
+    return dateKey(curWeek) < dateKey(todayWeek);
+  }
+  return riepilogoDate.getFullYear() < today.getFullYear() ||
+    (riepilogoDate.getFullYear() === today.getFullYear() && riepilogoDate.getMonth() < today.getMonth());
+}
+
+function updateRiepilogoNav() {
+  const nextBtn = document.getElementById('riepilogoNext');
+  if (nextBtn) nextBtn.classList.toggle('disabled', !canRiepilogoGoForward());
+}
+
+// Returns array of Date objects for the given period (capped at today)
+function getDatesInPeriod(view, date) {
+  const todayDk = dateKey(new Date());
+  const dates = [];
+  if (view === 'day') {
+    if (dateKey(date) <= todayDk) dates.push(new Date(date));
+  } else if (view === 'week') {
+    const ws = getWeekStart(date);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ws);
+      d.setDate(d.getDate() + i);
+      if (dateKey(d) <= todayDk) dates.push(d);
+    }
+  } else { // month
+    const year = date.getFullYear(), month = date.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
+      if (dateKey(d) <= todayDk) dates.push(d);
+    }
+  }
+  return dates;
+}
+
+function renderRiepilogoCalendar() {
+  const label = document.getElementById('riepilogoLabel');
+  const area  = document.getElementById('riepilogoCalendarArea');
+  if (!label || !area) return;
+  label.textContent = formatDateLabel(riepilogoDate, riepilogoView);
+  updateRiepilogoNav();
+
+  const todayKey = dateKey(new Date());
+
+  if (riepilogoView === 'month') { area.innerHTML = ''; return; }
+
+  if (riepilogoView === 'week') {
+    const ws = getWeekStart(riepilogoDate);
+    let html = '<div class="calendar-week">';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(ws); d.setDate(d.getDate() + i);
+      const dk = dateKey(d);
+      const isFuture = dk > todayKey;
+      html += '<div class="cal-day' +
+        (sameDay(d, new Date()) ? ' today' : '') +
+        (sameDay(d, riepilogoDate) ? ' selected' : '') +
+        (isFuture ? ' future' : '') +
+        '" data-date="' + dk + '">' +
+        '<div style="font-size:.72rem;color:inherit;opacity:.7;margin-bottom:2px">' + DAYS_SHORT[d.getDay()] + '</div>' +
+        d.getDate() + '</div>';
+    }
+    html += '</div>';
+    area.innerHTML = html;
+    area.querySelectorAll('.cal-day:not(.future)').forEach(el => {
+      el.addEventListener('click', () => {
+        const p = el.dataset.date.split('-');
+        riepilogoDate = new Date(p[0], p[1]-1, p[2]);
+        renderRiepilogoCalendar(); renderRiepilogo();
+      });
+    });
+    return;
+  }
+
+  // Day view — full month calendar
+  const year = riepilogoDate.getFullYear(), month = riepilogoDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  let html = '<div class="calendar-month">';
+  ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].forEach(d => {
+    html += '<div class="cal-day-header">' + d + '</div>';
+  });
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - startOffset);
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(startDate); d.setDate(d.getDate() + i);
+    const dk = dateKey(d);
+    const isOther = d.getMonth() !== month;
+    const isFuture = dk > todayKey;
+    html += '<div class="cal-day' +
+      (isOther  ? ' other-month' : '') +
+      (sameDay(d, new Date()) ? ' today' : '') +
+      (sameDay(d, riepilogoDate) ? ' selected' : '') +
+      (isFuture ? ' future' : '') +
+      '" data-date="' + dk + '">' + d.getDate() + '</div>';
+  }
+  html += '</div>';
+  area.innerHTML = html;
+  area.querySelectorAll('.cal-day:not(.future):not(.other-month)').forEach(el => {
+    el.addEventListener('click', () => {
+      const p = el.dataset.date.split('-');
+      riepilogoDate = new Date(p[0], p[1]-1, p[2]);
+      renderRiepilogoCalendar(); renderRiepilogo();
+    });
+  });
+}
+
+function renderRiepilogo() {
+  const container = document.getElementById('riepilogoTableArea');
+  if (!container) return;
+
+  const areaOps = operators[currentArea] || [];
+  if (areaOps.length === 0) {
+    container.innerHTML = '<div class="orari-empty"><svg class="orari-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg><p>Nessun operatore registrato in questa area</p></div>';
+    return;
+  }
+
+  // Sum attendance hours per operator for the selected period
+  const opMins = {};
+  areaOps.forEach(op => { opMins[op.id] = null; });
+
+  getDatesInPeriod(riepilogoView, riepilogoDate).forEach(d => {
+    const dk = dateKey(d);
+    const dayAtt    = (attendance[currentArea] && attendance[currentArea][dk]) || {};
+    const dayShifts = (shifts[currentArea]     && shifts[currentArea][dk])     || [];
+
+    Object.entries(dayAtt).forEach(([attKey, rec]) => {
+      const mins = calcHours(rec.inizio, rec.fine);
+      if (!mins || mins <= 0) return;
+      // attKey = shiftId + '_' + assignId  (neither part contains '_')
+      const sepIdx  = attKey.indexOf('_');
+      const shiftId = attKey.slice(0, sepIdx);
+      const assignId = attKey.slice(sepIdx + 1);
+      const shift = dayShifts.find(s => s.id === shiftId);
+      if (!shift) return;
+      const assign = shift.assignments.find(a => a.id === assignId);
+      if (!assign || opMins[assign.operatorId] === undefined) return;
+      opMins[assign.operatorId] = (opMins[assign.operatorId] || 0) + mins;
+    });
+  });
+
+  // Build table
+  const table = document.createElement('table');
+  table.className = 'attendance-table riepilogo-table';
+
+  const thead = document.createElement('thead');
+  thead.innerHTML =
+    '<tr>' +
+    '<th>Operatore</th>' +
+    '<th>Mansione</th>' +
+    '<th>Contratto</th>' +
+    '<th><div class="ore-header-wrap"><span>Ore totali</span>' +
+    '<button class="ore-dropdown-btn" type="button">' +
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+    '</button>' +
+    '<div class="ore-dropdown" style="display:none">' +
+    '<div class="ore-dropdown-item' + (!riepilogoCentesimal ? ' active' : '') + '" data-rmode="traditional">Ore tradizionali</div>' +
+    '<div class="ore-dropdown-item' + (riepilogoCentesimal  ? ' active' : '') + '" data-rmode="centesimal">Ore in centesimi</div>' +
+    '</div></div></th>' +
+    '</tr>';
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  areaOps.forEach(op => {
+    const mins = opMins[op.id];
+    const hoursText  = formatHours(mins, riepilogoCentesimal);
+    const hoursClass = (mins !== null && mins > 0) ? 'attendance-hours' : 'attendance-hours empty';
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><div class="attendance-op-name"><span class="op-indicator" style="background:#d1d5db"></span>' + op.name + '</div></td>' +
+      '<td class="riepilogo-meta">' + (op.role     || '--') + '</td>' +
+      '<td class="riepilogo-meta">' + (op.contract || '--') + '</td>' +
+      '<td><span class="' + hoursClass + '">' + hoursText + '</span></td>';
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  container.innerHTML = '';
+  container.appendChild(table);
+
+  // Dropdown toggle
+  container.querySelectorAll('.ore-dropdown-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.ore-dropdown').forEach(d => d.style.display = 'none');
+      btn.nextElementSibling.style.display = '';
+    });
+  });
+  container.querySelectorAll('.ore-dropdown-item[data-rmode]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      riepilogoCentesimal = item.dataset.rmode === 'centesimal';
+      renderRiepilogo();
     });
   });
 }

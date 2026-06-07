@@ -139,6 +139,7 @@
             <button class="sub-tab active" data-tab="operatori">Operatori</button>
             <button class="sub-tab" data-tab="turni">Turni</button>
             <button class="sub-tab" data-tab="orari">Orari</button>
+            <button class="sub-tab" data-tab="riepilogo">Riepilogo ore</button>
           </nav>
 
           <!-- Tab: Operatori -->
@@ -196,6 +197,28 @@
               </button>
             </div>
             <div id="shiftsArea"></div>
+          </div>
+
+          <!-- Tab: Riepilogo ore -->
+          <div class="tab-panel" id="tab-riepilogo" style="display:none;">
+            <div class="riepilogo-toolbar">
+              <div class="view-selector">
+                <button class="riepilogo-view-btn active" data-rview="month">Mese</button>
+                <button class="riepilogo-view-btn" data-rview="week">Settimana</button>
+                <button class="riepilogo-view-btn" data-rview="day">Giorno</button>
+              </div>
+              <div class="date-nav">
+                <button class="date-nav-arrow" id="riepilogoPrev">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <span class="date-nav-label" id="riepilogoLabel"></span>
+                <button class="date-nav-arrow" id="riepilogoNext">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div id="riepilogoCalendarArea"></div>
+            <div id="riepilogoTableArea"></div>
           </div>
 
           <!-- Tab: Orari -->
