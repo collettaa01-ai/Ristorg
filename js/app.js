@@ -1921,11 +1921,34 @@ document.getElementById('orariDateCalBtn').addEventListener('click', (e) => {
   });
 });
 
+// ── Riepilogo calendar dropdown ──
+const riepilogoCalDropdown = document.getElementById('riepilogoCalDropdown');
+if (riepilogoCalDropdown) {
+  document.getElementById('riepilogoDateCalBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (riepilogoCalDropdown.style.display === 'block') {
+      riepilogoCalDropdown.style.display = 'none';
+      return;
+    }
+    turniCalDropdown.style.display = 'none';
+    orariCalDropdown.style.display = 'none';
+    renderCalDropdown(riepilogoCalDropdown, new Date(riepilogoDate.getFullYear(), riepilogoDate.getMonth(), 1), riepilogoDate, {
+      blockFuture: true,
+      onSelect: (d) => {
+        riepilogoDate = d;
+        renderRiepilogoCalendar();
+        renderRiepilogo();
+      }
+    });
+  });
+}
+
 // Close dropdowns on outside click
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.date-cal-wrap')) {
     turniCalDropdown.style.display = 'none';
     orariCalDropdown.style.display = 'none';
+    if (riepilogoCalDropdown) riepilogoCalDropdown.style.display = 'none';
   }
 });
 
