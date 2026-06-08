@@ -1,0 +1,6 @@
+[build]
+  publish = "."
+
+[context.branch-deploy]
+  # Abilita il deploy automatico per tutti i branch
+  publish = "."
