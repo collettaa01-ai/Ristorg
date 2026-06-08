@@ -1553,149 +1553,61 @@ function renderOrari() {
 }
 
 // ═══════════════════════════════════
-// Riepilogo ore
+// Riepilogo ore (filter-based)
 // ═══════════════════════════════════
-let riepilogoView = 'month';
-let riepilogoDate = new Date();
 let riepilogoCentesimal = false;
 
-document.querySelectorAll('.riepilogo-view-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.riepilogo-view-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    riepilogoView = btn.dataset.rview;
-    renderRiepilogoCalendar();
-    renderRiepilogo();
-  });
-});
+// Filter state
+//   riepilogoFilterOps: Set of operator IDs (empty Set = "all operators" implicit)
+//   riepilogoFilterDates: Set of date keys (YYYY-MM-DD) (empty Set = "no period selected")
+//   riepilogoFilterMode: 'days' | 'range' | 'month'
+//   riepilogoFilterRangeStart: dateKey of first click in range mode
+//   riepilogoFilterCalView: which month is currently shown in the inline calendar
+//   riepilogoFilterApplied: true if Applica was clicked at least once (else table shows empty state)
+const riepilogoFilterOps = new Set();
+const riepilogoFilterDates = new Set();
+let riepilogoFilterMode = 'days';
+let riepilogoFilterRangeStart = null;
+let riepilogoFilterCalView = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let riepilogoFilterApplied = false;
 
-document.getElementById('riepilogoPrev').addEventListener('click', () => {
-  if (riepilogoView === 'day')        riepilogoDate.setDate(riepilogoDate.getDate() - 1);
-  else if (riepilogoView === 'week')  riepilogoDate.setDate(riepilogoDate.getDate() - 7);
-  else                                riepilogoDate.setMonth(riepilogoDate.getMonth() - 1);
-  renderRiepilogoCalendar(); renderRiepilogo();
-});
-
-document.getElementById('riepilogoNext').addEventListener('click', () => {
-  if (!canRiepilogoGoForward()) return;
-  if (riepilogoView === 'day')        riepilogoDate.setDate(riepilogoDate.getDate() + 1);
-  else if (riepilogoView === 'week')  riepilogoDate.setDate(riepilogoDate.getDate() + 7);
-  else                                riepilogoDate.setMonth(riepilogoDate.getMonth() + 1);
-  const today = new Date();
-  if (dateKey(riepilogoDate) > dateKey(today)) riepilogoDate = new Date(today);
-  renderRiepilogoCalendar(); renderRiepilogo();
-});
-
-function canRiepilogoGoForward() {
-  const today = new Date();
-  if (riepilogoView === 'day')   return dateKey(riepilogoDate) < dateKey(today);
-  if (riepilogoView === 'week') {
-    const curWeek = getWeekStart(riepilogoDate);
-    const todayWeek = getWeekStart(today);
-    return dateKey(curWeek) < dateKey(todayWeek);
-  }
-  return riepilogoDate.getFullYear() < today.getFullYear() ||
-    (riepilogoDate.getFullYear() === today.getFullYear() && riepilogoDate.getMonth() < today.getMonth());
+// Stub kept to preserve old call sites (tab switch). Now updates summary + table.
+function renderRiepilogoCalendar() {
+  renderRiepilogoFilterSummary();
 }
 
-function updateRiepilogoNav() {
-  const nextBtn = document.getElementById('riepilogoNext');
-  if (nextBtn) nextBtn.classList.toggle('disabled', !canRiepilogoGoForward());
-}
-
-// Returns array of Date objects for the given period (capped at today)
-function getDatesInPeriod(view, date) {
+// Returns array of Date objects from the current filter selection (capped at today)
+function getRiepilogoFilterDateList() {
   const todayDk = dateKey(new Date());
   const dates = [];
-  if (view === 'day') {
-    if (dateKey(date) <= todayDk) dates.push(new Date(date));
-  } else if (view === 'week') {
-    const ws = getWeekStart(date);
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(ws);
-      d.setDate(d.getDate() + i);
-      if (dateKey(d) <= todayDk) dates.push(d);
+  riepilogoFilterDates.forEach(dk => {
+    if (dk <= todayDk) {
+      const p = dk.split('-');
+      dates.push(new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2])));
     }
-  } else { // month
-    const year = date.getFullYear(), month = date.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    for (let i = 1; i <= daysInMonth; i++) {
-      const d = new Date(year, month, i);
-      if (dateKey(d) <= todayDk) dates.push(d);
-    }
-  }
+  });
   return dates;
 }
 
-function renderRiepilogoCalendar() {
-  const label = document.getElementById('riepilogoLabel');
-  const area  = document.getElementById('riepilogoCalendarArea');
-  if (!label || !area) return;
-  label.textContent = formatDateLabel(riepilogoDate, riepilogoView);
-  updateRiepilogoNav();
+function renderRiepilogoFilterSummary() {
+  const summary = document.getElementById('riepilogoFilterSummary');
+  const resetBtn = document.getElementById('riepilogoFilterReset');
+  if (!summary) return;
 
-  const todayKey = dateKey(new Date());
+  const areaOps = operators[currentArea] || [];
+  const opsCount = riepilogoFilterOps.size;
+  const daysCount = riepilogoFilterDates.size;
 
-  if (riepilogoView === 'month') { area.innerHTML = ''; return; }
-
-  if (riepilogoView === 'week') {
-    const ws = getWeekStart(riepilogoDate);
-    let html = '<div class="calendar-week">';
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(ws); d.setDate(d.getDate() + i);
-      const dk = dateKey(d);
-      const isFuture = dk > todayKey;
-      html += '<div class="cal-day' +
-        (sameDay(d, new Date()) ? ' today' : '') +
-        (sameDay(d, riepilogoDate) ? ' selected' : '') +
-        (isFuture ? ' future' : '') +
-        '" data-date="' + dk + '">' +
-        '<div style="font-size:.72rem;color:inherit;opacity:.7;margin-bottom:2px">' + DAYS_SHORT[d.getDay()] + '</div>' +
-        d.getDate() + '</div>';
-    }
-    html += '</div>';
-    area.innerHTML = html;
-    area.querySelectorAll('.cal-day:not(.future)').forEach(el => {
-      el.addEventListener('click', () => {
-        const p = el.dataset.date.split('-');
-        riepilogoDate = new Date(p[0], p[1]-1, p[2]);
-        renderRiepilogoCalendar(); renderRiepilogo();
-      });
-    });
-    return;
+  if (!riepilogoFilterApplied || (opsCount === 0 && daysCount === 0)) {
+    summary.textContent = 'Nessun filtro applicato';
+    if (resetBtn) resetBtn.style.display = 'none';
+  } else {
+    const opsTxt = (opsCount === areaOps.length) ? 'Tutti gli operatori' :
+                   (opsCount === 1 ? '1 operatore' : opsCount + ' operatori');
+    const dTxt = daysCount === 1 ? '1 giorno' : daysCount + ' giorni';
+    summary.textContent = opsTxt + ' • ' + dTxt;
+    if (resetBtn) resetBtn.style.display = 'inline-flex';
   }
-
-  // Day view — full month calendar
-  const year = riepilogoDate.getFullYear(), month = riepilogoDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const startOffset = (firstDay.getDay() + 6) % 7;
-  let html = '<div class="calendar-month">';
-  ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'].forEach(d => {
-    html += '<div class="cal-day-header">' + d + '</div>';
-  });
-  const startDate = new Date(firstDay);
-  startDate.setDate(startDate.getDate() - startOffset);
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(startDate); d.setDate(d.getDate() + i);
-    const dk = dateKey(d);
-    const isOther = d.getMonth() !== month;
-    const isFuture = dk > todayKey;
-    html += '<div class="cal-day' +
-      (isOther  ? ' other-month' : '') +
-      (sameDay(d, new Date()) ? ' today' : '') +
-      (sameDay(d, riepilogoDate) ? ' selected' : '') +
-      (isFuture ? ' future' : '') +
-      '" data-date="' + dk + '">' + d.getDate() + '</div>';
-  }
-  html += '</div>';
-  area.innerHTML = html;
-  area.querySelectorAll('.cal-day:not(.future):not(.other-month)').forEach(el => {
-    el.addEventListener('click', () => {
-      const p = el.dataset.date.split('-');
-      riepilogoDate = new Date(p[0], p[1]-1, p[2]);
-      renderRiepilogoCalendar(); renderRiepilogo();
-    });
-  });
 }
 
 function renderRiepilogo() {
@@ -1708,11 +1620,20 @@ function renderRiepilogo() {
     return;
   }
 
-  // Sum attendance hours per operator for the selected period
-  const opMins = {};
-  areaOps.forEach(op => { opMins[op.id] = null; });
+  // Empty state when no filter has been applied yet (or no dates / no ops)
+  if (!riepilogoFilterApplied || riepilogoFilterDates.size === 0 || riepilogoFilterOps.size === 0) {
+    container.innerHTML = '<div class="orari-empty"><svg class="orari-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg><p>Applica un filtro per visualizzare il monte ore</p><p style="font-size:.8rem;color:var(--text-secondary);margin-top:6px">Seleziona uno o più operatori e un periodo</p></div>';
+    return;
+  }
 
-  getDatesInPeriod(riepilogoView, riepilogoDate).forEach(d => {
+  // Operators to display = those selected in the filter
+  const filteredOps = areaOps.filter(op => riepilogoFilterOps.has(op.id));
+
+  // Sum attendance hours per operator over the selected dates
+  const opMins = {};
+  filteredOps.forEach(op => { opMins[op.id] = null; });
+
+  getRiepilogoFilterDateList().forEach(d => {
     const dk = dateKey(d);
     const dayAtt    = (attendance[currentArea] && attendance[currentArea][dk]) || {};
     const dayShifts = (shifts[currentArea]     && shifts[currentArea][dk])     || [];
@@ -1754,7 +1675,7 @@ function renderRiepilogo() {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  areaOps.forEach(op => {
+  filteredOps.forEach(op => {
     const mins = opMins[op.id];
     const hoursText  = formatHours(mins, riepilogoCentesimal);
     const hoursClass = (mins !== null && mins > 0) ? 'attendance-hours' : 'attendance-hours empty';
@@ -1787,6 +1708,272 @@ function renderRiepilogo() {
     });
   });
 }
+
+// ─── Riepilogo Filter Panel ───
+function openRiepilogoFilterPanel() {
+  const panel = document.getElementById('riepilogoFilterPanel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  renderRiepilogoFilterOps();
+  renderRiepilogoFilterCalendar();
+  updateRiepilogoFilterColState();
+  updateRiepilogoFilterToggleAllLabel();
+}
+
+function closeRiepilogoFilterPanel() {
+  const panel = document.getElementById('riepilogoFilterPanel');
+  if (panel) panel.style.display = 'none';
+}
+
+function renderRiepilogoFilterOps() {
+  const list = document.getElementById('riepilogoOpsList');
+  if (!list) return;
+  const areaOps = operators[currentArea] || [];
+  if (areaOps.length === 0) {
+    list.innerHTML = '<div style="padding:16px;font-size:.85rem;color:var(--text-secondary);text-align:center">Nessun operatore in questa area</div>';
+    return;
+  }
+  list.innerHTML = areaOps.map(op =>
+    '<div class="filter-op-item' + (riepilogoFilterOps.has(op.id) ? ' checked' : '') + '" data-op-id="' + op.id + '">' +
+      '<span class="filter-op-checkbox"></span>' +
+      '<span class="filter-op-name">' + op.name + '</span>' +
+    '</div>'
+  ).join('');
+  list.querySelectorAll('.filter-op-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.opId;
+      if (riepilogoFilterOps.has(id)) riepilogoFilterOps.delete(id);
+      else riepilogoFilterOps.add(id);
+      el.classList.toggle('checked');
+      updateRiepilogoFilterColState();
+      updateRiepilogoFilterToggleAllLabel();
+    });
+  });
+}
+
+function updateRiepilogoFilterColState() {
+  const col = document.getElementById('riepilogoFilterCalCol');
+  if (!col) return;
+  // Calendar is "active" only when at least one operator is selected
+  if (riepilogoFilterOps.size === 0) col.classList.add('inactive');
+  else col.classList.remove('inactive');
+}
+
+function updateRiepilogoFilterToggleAllLabel() {
+  const btn = document.getElementById('riepilogoToggleAllOps');
+  if (!btn) return;
+  const areaOps = operators[currentArea] || [];
+  btn.textContent = (riepilogoFilterOps.size === areaOps.length && areaOps.length > 0)
+    ? 'Deseleziona tutti' : 'Seleziona tutti';
+}
+
+function renderRiepilogoFilterCalendar() {
+  const mount = document.getElementById('riepilogoFilterCalMount');
+  if (!mount) return;
+
+  const year = riepilogoFilterCalView.getFullYear();
+  const month = riepilogoFilterCalView.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const todayK = dateKey(new Date());
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+
+  const now = new Date();
+  const canFwd = year < now.getFullYear() || (year === now.getFullYear() && month < now.getMonth());
+
+  let html = '<div class="cal-dd-header">';
+  html += '<button class="cal-dd-arrow" data-dir="prev"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></button>';
+  html += '<span class="cal-dd-title">' + monthNames[month] + ' ' + year + '</span>';
+  html += '<button class="cal-dd-arrow' + (canFwd ? '' : ' disabled') + '" data-dir="next"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg></button>';
+  html += '</div>';
+
+  html += '<div class="cal-dd-grid">';
+  ['Lu','Ma','Me','Gi','Ve','Sa','Do'].forEach(d => { html += '<div class="cal-dd-dayname">' + d + '</div>'; });
+
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - startOffset);
+
+  // For range mode, compute range endpoints to highlight in-range cells
+  let rangeStartK = null, rangeEndK = null;
+  if (riepilogoFilterMode === 'range') {
+    // Derive range from selected dates set: min and max
+    if (riepilogoFilterDates.size > 0) {
+      const sortedDks = Array.from(riepilogoFilterDates).sort();
+      rangeStartK = sortedDks[0];
+      rangeEndK = sortedDks[sortedDks.length - 1];
+    } else if (riepilogoFilterRangeStart) {
+      rangeStartK = riepilogoFilterRangeStart;
+      rangeEndK = riepilogoFilterRangeStart;
+    }
+  }
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(startDate);
+    d.setDate(d.getDate() + i);
+    const dk = dateKey(d);
+    const isOther = d.getMonth() !== month;
+    const isToday = dk === todayK;
+    const isFuture = dk > todayK;
+    const isSel = riepilogoFilterDates.has(dk);
+    const isRangeBound = (rangeStartK && (dk === rangeStartK || dk === rangeEndK));
+    const inRange = (rangeStartK && rangeEndK && dk > rangeStartK && dk < rangeEndK);
+
+    let cls = 'cal-dd-day';
+    if (isOther) cls += ' other-month';
+    if (isToday) cls += ' today';
+    if (isSel) cls += ' selected';
+    if (isRangeBound) cls += ' range-end';
+    if (inRange) cls += ' in-range';
+    if (isFuture) cls += ' disabled';
+
+    html += '<div class="' + cls + '" data-date="' + dk + '">' + d.getDate() + '</div>';
+  }
+  html += '</div>';
+
+  mount.innerHTML = html;
+
+  // Arrow nav
+  mount.querySelectorAll('.cal-dd-arrow:not(.disabled)').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dir = btn.dataset.dir;
+      riepilogoFilterCalView = new Date(year, month + (dir === 'next' ? 1 : -1), 1);
+      // If in 'month' mode, recompute month selection
+      if (riepilogoFilterMode === 'month') applyMonthSelection();
+      renderRiepilogoFilterCalendar();
+    });
+  });
+
+  // Day click
+  mount.querySelectorAll('.cal-dd-day:not(.disabled):not(.other-month)').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dk = el.dataset.date;
+      if (riepilogoFilterMode === 'days') {
+        // Toggle individual day
+        if (riepilogoFilterDates.has(dk)) riepilogoFilterDates.delete(dk);
+        else riepilogoFilterDates.add(dk);
+      } else if (riepilogoFilterMode === 'range') {
+        if (!riepilogoFilterRangeStart || riepilogoFilterDates.size > 1) {
+          // Start new range
+          riepilogoFilterRangeStart = dk;
+          riepilogoFilterDates.clear();
+          riepilogoFilterDates.add(dk);
+        } else {
+          // Close range
+          const startK = riepilogoFilterRangeStart;
+          const endK = dk;
+          const [a, b] = startK < endK ? [startK, endK] : [endK, startK];
+          riepilogoFilterDates.clear();
+          const ad = new Date(parseInt(a.slice(0,4)), parseInt(a.slice(5,7))-1, parseInt(a.slice(8,10)));
+          const bd = new Date(parseInt(b.slice(0,4)), parseInt(b.slice(5,7))-1, parseInt(b.slice(8,10)));
+          for (let d = new Date(ad); d <= bd; d.setDate(d.getDate() + 1)) {
+            const k = dateKey(d);
+            if (k <= todayK) riepilogoFilterDates.add(k);
+          }
+          riepilogoFilterRangeStart = null;
+        }
+      } else if (riepilogoFilterMode === 'month') {
+        // Clicking in month mode just (re)applies the month selection
+        applyMonthSelection();
+      }
+      renderRiepilogoFilterCalendar();
+    });
+  });
+}
+
+function applyMonthSelection() {
+  riepilogoFilterDates.clear();
+  const year = riepilogoFilterCalView.getFullYear();
+  const month = riepilogoFilterCalView.getMonth();
+  const todayK = dateKey(new Date());
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let i = 1; i <= daysInMonth; i++) {
+    const k = dateKey(new Date(year, month, i));
+    if (k <= todayK) riepilogoFilterDates.add(k);
+  }
+  riepilogoFilterRangeStart = null;
+}
+
+// Wire up filter button + panel events
+(function initRiepilogoFilterPanel() {
+  const filterBtn = document.getElementById('riepilogoFilterBtn');
+  if (!filterBtn) return; // tab not in DOM
+
+  filterBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const panel = document.getElementById('riepilogoFilterPanel');
+    if (panel.style.display === 'block') closeRiepilogoFilterPanel();
+    else openRiepilogoFilterPanel();
+  });
+
+  // Stop clicks inside the panel from closing it
+  const panel = document.getElementById('riepilogoFilterPanel');
+  if (panel) panel.addEventListener('click', (e) => e.stopPropagation());
+
+  // Toggle all operators
+  document.getElementById('riepilogoToggleAllOps').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const areaOps = operators[currentArea] || [];
+    if (riepilogoFilterOps.size === areaOps.length) {
+      riepilogoFilterOps.clear();
+    } else {
+      riepilogoFilterOps.clear();
+      areaOps.forEach(op => riepilogoFilterOps.add(op.id));
+    }
+    renderRiepilogoFilterOps();
+    updateRiepilogoFilterColState();
+    updateRiepilogoFilterToggleAllLabel();
+  });
+
+  // Mode tabs
+  document.querySelectorAll('.filter-mode-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.filter-mode-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      riepilogoFilterMode = tab.dataset.fmode;
+      // Reset transient selection state when switching modes
+      riepilogoFilterRangeStart = null;
+      if (riepilogoFilterMode === 'month') {
+        applyMonthSelection();
+      }
+      renderRiepilogoFilterCalendar();
+    });
+  });
+
+  // Clear
+  document.getElementById('riepilogoFilterClear').addEventListener('click', (e) => {
+    e.stopPropagation();
+    riepilogoFilterOps.clear();
+    riepilogoFilterDates.clear();
+    riepilogoFilterRangeStart = null;
+    renderRiepilogoFilterOps();
+    renderRiepilogoFilterCalendar();
+    updateRiepilogoFilterColState();
+    updateRiepilogoFilterToggleAllLabel();
+  });
+
+  // Apply
+  document.getElementById('riepilogoFilterApply').addEventListener('click', (e) => {
+    e.stopPropagation();
+    riepilogoFilterApplied = true;
+    closeRiepilogoFilterPanel();
+    renderRiepilogoFilterSummary();
+    renderRiepilogo();
+  });
+
+  // Reset (X button in toolbar)
+  document.getElementById('riepilogoFilterReset').addEventListener('click', (e) => {
+    e.stopPropagation();
+    riepilogoFilterOps.clear();
+    riepilogoFilterDates.clear();
+    riepilogoFilterRangeStart = null;
+    riepilogoFilterApplied = false;
+    renderRiepilogoFilterSummary();
+    renderRiepilogo();
+  });
+})();
 
 // ═══════════════════════════════════
 // Global Escape
@@ -1921,34 +2108,16 @@ document.getElementById('orariDateCalBtn').addEventListener('click', (e) => {
   });
 });
 
-// ── Riepilogo calendar dropdown ──
-const riepilogoCalDropdown = document.getElementById('riepilogoCalDropdown');
-if (riepilogoCalDropdown) {
-  document.getElementById('riepilogoDateCalBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (riepilogoCalDropdown.style.display === 'block') {
-      riepilogoCalDropdown.style.display = 'none';
-      return;
-    }
-    turniCalDropdown.style.display = 'none';
-    orariCalDropdown.style.display = 'none';
-    renderCalDropdown(riepilogoCalDropdown, new Date(riepilogoDate.getFullYear(), riepilogoDate.getMonth(), 1), riepilogoDate, {
-      blockFuture: true,
-      onSelect: (d) => {
-        riepilogoDate = d;
-        renderRiepilogoCalendar();
-        renderRiepilogo();
-      }
-    });
-  });
-}
-
 // Close dropdowns on outside click
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.date-cal-wrap')) {
     turniCalDropdown.style.display = 'none';
     orariCalDropdown.style.display = 'none';
-    if (riepilogoCalDropdown) riepilogoCalDropdown.style.display = 'none';
+  }
+  // Riepilogo filter panel: close on outside click of wrap
+  if (!e.target.closest('.riepilogo-filter-wrap')) {
+    const panel = document.getElementById('riepilogoFilterPanel');
+    if (panel) panel.style.display = 'none';
   }
 });
 

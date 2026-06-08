@@ -216,28 +216,47 @@
           <!-- Tab: Riepilogo ore -->
           <div class="tab-panel" id="tab-riepilogo" style="display:none;">
             <div class="riepilogo-toolbar">
-              <div class="date-nav">
-                <button class="date-nav-arrow" id="riepilogoPrev">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <div class="riepilogo-filter-wrap">
+                <button class="filter-btn" id="riepilogoFilterBtn" title="Filtra">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                  </svg>
+                  <span>Filtra</span>
                 </button>
-                <span class="date-nav-label" id="riepilogoLabel"></span>
-                <div class="date-cal-wrap">
-                  <button class="date-cal-btn" id="riepilogoDateCalBtn" title="Scegli data">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2"/>
-                      <line x1="16" y1="2" x2="16" y2="6"/>
-                      <line x1="8" y1="2" x2="8" y2="6"/>
-                      <line x1="3" y1="10" x2="21" y2="10"/>
-                    </svg>
-                  </button>
-                  <div class="date-cal-dropdown" id="riepilogoCalDropdown" style="display:none;"></div>
+                <span class="filter-summary" id="riepilogoFilterSummary"></span>
+                <button class="filter-reset" id="riepilogoFilterReset" style="display:none;" title="Azzera filtri">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="filter-panel" id="riepilogoFilterPanel" style="display:none;">
+                  <div class="filter-panel-cols">
+                    <!-- LEFT: operators -->
+                    <div class="filter-col filter-col-ops">
+                      <div class="filter-col-head">
+                        <span>Operatori</span>
+                        <button class="filter-toggle-all" id="riepilogoToggleAllOps" type="button">Seleziona tutti</button>
+                      </div>
+                      <div class="filter-ops-list" id="riepilogoOpsList"></div>
+                    </div>
+                    <!-- RIGHT: calendar -->
+                    <div class="filter-col filter-col-cal" id="riepilogoFilterCalCol">
+                      <div class="filter-col-head">
+                        <span>Periodo</span>
+                        <div class="filter-mode-tabs">
+                          <button class="filter-mode-tab active" data-fmode="days" type="button">Giorni</button>
+                          <button class="filter-mode-tab" data-fmode="range" type="button">Intervallo</button>
+                          <button class="filter-mode-tab" data-fmode="month" type="button">Mese</button>
+                        </div>
+                      </div>
+                      <div class="filter-cal-mount" id="riepilogoFilterCalMount"></div>
+                    </div>
+                  </div>
+                  <div class="filter-panel-foot">
+                    <button class="filter-clear-btn" id="riepilogoFilterClear" type="button">Pulisci</button>
+                    <button class="filter-apply-btn" id="riepilogoFilterApply" type="button">Applica</button>
+                  </div>
                 </div>
-                <button class="date-nav-arrow" id="riepilogoNext">
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </button>
               </div>
             </div>
-            <div id="riepilogoCalendarArea"></div>
             <div id="riepilogoTableArea"></div>
           </div>
 
