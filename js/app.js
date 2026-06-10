@@ -1713,6 +1713,10 @@ function renderRiepilogo() {
 function openRiepilogoFilterPanel() {
   const panel = document.getElementById('riepilogoFilterPanel');
   if (!panel) return;
+  // Reset calendar view to the current real-world month every time the panel
+  // opens, regardless of where the user navigated last session.
+  const now = new Date();
+  riepilogoFilterCalView = new Date(now.getFullYear(), now.getMonth(), 1);
   panel.style.display = 'block';
   renderRiepilogoFilterOps();
   renderRiepilogoFilterCalendar();
@@ -2068,6 +2072,13 @@ function renderCalDropdown(container, viewDate, selectedDt, options) {
   });
 }
 
+// Always open calendars on the current real-world month, not on the
+// month the user last navigated to. Reopening should reset to "now".
+function currentMonthStart() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
 // ── Turni calendar dropdown ──
 const turniCalDropdown = document.getElementById('turniCalDropdown');
 document.getElementById('dateCalBtn').addEventListener('click', (e) => {
@@ -2078,7 +2089,7 @@ document.getElementById('dateCalBtn').addEventListener('click', (e) => {
   }
   // Close the other dropdown if open
   document.getElementById('orariCalDropdown').style.display = 'none';
-  renderCalDropdown(turniCalDropdown, new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1), selectedDate, {
+  renderCalDropdown(turniCalDropdown, currentMonthStart(), selectedDate, {
     blockFuture: false,
     onSelect: (d) => {
       selectedDate = d;
@@ -2098,7 +2109,7 @@ document.getElementById('orariDateCalBtn').addEventListener('click', (e) => {
   }
   // Close the other dropdown if open
   turniCalDropdown.style.display = 'none';
-  renderCalDropdown(orariCalDropdown, new Date(orariDate.getFullYear(), orariDate.getMonth(), 1), orariDate, {
+  renderCalDropdown(orariCalDropdown, currentMonthStart(), orariDate, {
     blockFuture: true,
     onSelect: (d) => {
       orariDate = d;
