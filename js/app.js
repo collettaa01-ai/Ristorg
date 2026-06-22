@@ -2181,16 +2181,16 @@ function formatReservationDateLabel(d) {
 // Filter state (only for current day, reset on day change)
 let mealFilter = null; // null | 'colazione' | 'pranzo' | 'cena'
 
-// Phone, person, clock, check icons used inside cells / stats
+// Icons used inside reservation cells / stats / actions.
+// Stats use Font Awesome 6 Free solid: fa-users, fa-user-clock, fa-user-check.
 const RES_ICONS = {
-  phone:    '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
-  group:    '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
-  personClock: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 19a4 4 0 0 0-8 0"/><circle cx="10" cy="9" r="4"/><circle cx="18" cy="17" r="4"/><path d="M18 15v2l1.5 1"/></svg>',
-  personCheck: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 19a4 4 0 0 0-8 0"/><circle cx="10" cy="9" r="4"/><path d="M15 16l2 2 4-4"/></svg>',
+  phoneInline: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  faUsers:      '<svg viewBox="0 0 640 512" fill="currentColor"><path d="M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192l42.7 0c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0L21.3 320C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7l42.7 0C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3l-213.3 0zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352l117.3 0C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7l-330.7 0c-14.7 0-26.7-11.9-26.7-26.7z"/></svg>',
+  faUserClock:  '<svg viewBox="0 0 640 512" fill="currentColor"><path d="M224 0a128 128 0 1 1 0 256A128 128 0 1 1 224 0zM178.3 304l91.4 0c20.6 0 40.4 3.5 58.8 9.9C323 331 320 349.1 320 368c0 59.5 29.5 112.1 74.8 144L37.8 512C16.9 512 0 495.1 0 474.2C0 379.2 77.2 302 172.2 302l6.1 0zm269.7 64a144 144 0 1 1 288 0 144 144 0 1 1 -288 0zm144-80c-8.8 0-16 7.2-16 16l0 64c0 8.8 7.2 16 16 16l48 0c8.8 0 16-7.2 16-16s-7.2-16-16-16l-32 0 0-48c0-8.8-7.2-16-16-16z"/></svg>',
+  faUserCheck:  '<svg viewBox="0 0 640 512" fill="currentColor"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0zM627.3 211.3c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L490.3 302.1 446.6 258.3c-6.2-6.2-16.4-6.2-22.6 0s-6.2 16.4 0 22.6l54.9 54.9c4.5 4.5 11.7 4.5 16.2 0L627.3 211.3z"/></svg>',
   check:    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
   edit:     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
-  trash:    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
-  notes:    '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+  trash:    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>'
 };
 
 // Sort by time (HH:MM); reservations without time go last
@@ -2228,9 +2228,12 @@ function renderReservations() {
 
   if (statsEl) {
     statsEl.innerHTML =
-      '<div class="reservation-stats-item">' + RES_ICONS.group + '<span class="stats-count">' + totalCount + '</span><span>Totale prenotati</span></div>' +
-      '<div class="reservation-stats-item">' + RES_ICONS.personClock + '<span class="stats-count">' + waitingCount + '</span><span>Ancora da arrivare</span></div>' +
-      '<div class="reservation-stats-item">' + RES_ICONS.personCheck + '<span class="stats-count">' + arrivedCount + '</span><span>Arrivati</span></div>';
+      '<div class="reservation-stats-item reservation-stats-item--total" title="Totale prenotati">' +
+        RES_ICONS.faUsers + '<span class="stats-count">' + totalCount + '</span></div>' +
+      '<div class="reservation-stats-item reservation-stats-item--waiting" title="Ancora da arrivare">' +
+        RES_ICONS.faUserClock + '<span class="stats-count">' + waitingCount + '</span></div>' +
+      '<div class="reservation-stats-item reservation-stats-item--arrived" title="Arrivati">' +
+        RES_ICONS.faUserCheck + '<span class="stats-count">' + arrivedCount + '</span></div>';
   }
 
   if (dayList.length === 0) {
@@ -2268,10 +2271,14 @@ function renderReservations() {
   sorted.forEach(r => {
     const meal = MEAL_ORDER.includes(r.meal) ? r.meal : 'pranzo';
     const status = r.status === 'arrived' ? 'arrived' : 'confirmed';
-    const phone = r.phone ? escapeHTML(r.phone) : '<span class="res-meta-empty">--</span>';
-    const time  = r.time  ? escapeHTML(r.time)  : '<span class="res-meta-empty">--</span>';
-    const table = r.table ? escapeHTML(r.table) : '<span class="res-meta-empty">--</span>';
-    const notesPill = r.notes ? '<span class="res-notes-pill" title="' + escapeHTML(r.notes) + '">' + RES_ICONS.notes + 'note</span>' : '';
+    const time   = r.time  ? escapeHTML(r.time)  : '<span class="res-meta-empty">--</span>';
+    const tableV = r.table ? escapeHTML(r.table) : '<span class="res-meta-empty">--</span>';
+    const phoneIcon = r.phone
+      ? '<a href="tel:' + escapeHTML(r.phone).replace(/\s+/g, '') + '" class="res-phone-inline" title="' + escapeHTML(r.phone) + '">' + RES_ICONS.phoneInline + '</a>'
+      : '';
+    const noteLine = r.notes
+      ? '<div class="res-cell-note-line"><span class="res-note-label">Note:</span> ' + escapeHTML(r.notes) + '</div>'
+      : '';
     const statusHtml = (status === 'arrived')
       ? '<span class="res-status res-status--arrived"><span class="status-dot"></span>Arrivato</span>'
       : '<span class="res-status res-status--confirmed"><span class="status-dot"></span>Confermata</span>';
@@ -2280,12 +2287,10 @@ function renderReservations() {
       : '<button class="res-confirm-btn" data-action="confirm">' + RES_ICONS.check + 'Conferma arrivo</button>';
 
     html += '<tr data-rid="' + r.id + '">' +
-      '<td><span class="res-cell-name"><span class="res-meal-mini">' + MEAL_ICONS[meal] + '</span>' + escapeHTML(r.name) +
-        '<span style="background:var(--accent);color:#fff;font-size:.7rem;padding:1px 7px;border-radius:999px;margin-left:6px;font-weight:600">' + (r.pax || 1) + ' pax</span>' +
-        notesPill + '</span></td>' +
-      '<td>' + phone + '</td>' +
+      '<td><div><span class="res-cell-name"><span class="res-meal-mini">' + MEAL_ICONS[meal] + '</span>' + escapeHTML(r.name) + phoneIcon + '</span>' + noteLine + '</div></td>' +
+      '<td>' + (r.pax || 1) + '</td>' +
       '<td>' + time + '</td>' +
-      '<td>' + table + '</td>' +
+      '<td>' + tableV + '</td>' +
       '<td>' + statusHtml + '</td>' +
       '<td><div class="res-action-cell">' +
         confirmBtn +
