@@ -2178,15 +2178,60 @@ function formatReservationDateLabel(d) {
   return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// Filter state (only for current day, reset on day change)
+let mealFilter = null; // null | 'colazione' | 'pranzo' | 'cena'
+
+// Phone, person, clock, check icons used inside cells / stats
+const RES_ICONS = {
+  phone:    '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+  group:    '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>',
+  personClock: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 19a4 4 0 0 0-8 0"/><circle cx="10" cy="9" r="4"/><circle cx="18" cy="17" r="4"/><path d="M18 15v2l1.5 1"/></svg>',
+  personCheck: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 19a4 4 0 0 0-8 0"/><circle cx="10" cy="9" r="4"/><path d="M15 16l2 2 4-4"/></svg>',
+  check:    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  edit:     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  trash:    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+  notes:    '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+};
+
+// Sort by time (HH:MM); reservations without time go last
+function sortByTime(list) {
+  return list.slice().sort((a, b) => {
+    const ta = a.time || '99:99';
+    const tb = b.time || '99:99';
+    if (ta < tb) return -1;
+    if (ta > tb) return 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+}
+
 function renderReservations() {
   const label = document.getElementById('prenDateLabel');
   if (label) label.textContent = formatReservationDateLabel(reservationDate);
 
   const container = document.getElementById('reservationsArea');
+  const statsEl   = document.getElementById('reservationStats');
   if (!container) return;
 
   const dk = dateKey(reservationDate);
   const dayList = reservations[dk] || [];
+
+  // Update meal filter button visual state
+  document.querySelectorAll('.meal-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.meal === mealFilter);
+  });
+
+  // Stats are computed over the FULL day (not filtered)
+  const totalCount   = dayList.reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
+  const arrivedCount = dayList.filter(r => r.status === 'arrived')
+                              .reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
+  const waitingCount = totalCount - arrivedCount;
+
+  if (statsEl) {
+    statsEl.innerHTML =
+      '<div class="reservation-stats-item">' + RES_ICONS.group + '<span class="stats-count">' + totalCount + '</span><span>Totale prenotati</span></div>' +
+      '<div class="reservation-stats-item">' + RES_ICONS.personClock + '<span class="stats-count">' + waitingCount + '</span><span>Ancora da arrivare</span></div>' +
+      '<div class="reservation-stats-item">' + RES_ICONS.personCheck + '<span class="stats-count">' + arrivedCount + '</span><span>Arrivati</span></div>';
+  }
 
   if (dayList.length === 0) {
     container.innerHTML =
@@ -2197,63 +2242,106 @@ function renderReservations() {
     return;
   }
 
-  // Group by meal, in canonical order
-  const groups = {};
-  MEAL_ORDER.forEach(m => { groups[m] = []; });
-  dayList.forEach(r => {
-    const m = MEAL_ORDER.includes(r.meal) ? r.meal : 'pranzo';
-    groups[m].push(r);
-  });
+  // Apply meal filter
+  const visible = mealFilter ? dayList.filter(r => r.meal === mealFilter) : dayList;
 
-  let html = '';
-  MEAL_ORDER.forEach(meal => {
-    const items = groups[meal];
-    if (items.length === 0) return;
-    const totalPax = items.reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
-    html += '<div class="reservation-group-header">' +
-              '<span class="reservation-meal-icon">' + MEAL_ICONS[meal] + '</span>' +
-              '<span>' + MEAL_LABELS[meal] + '</span>' +
-              '<span class="group-count">' + items.length + ' • ' + totalPax + ' pax</span>' +
-            '</div>';
-    items.forEach(r => {
-      const phoneHtml = r.phone ? '<span class="reservation-meta-item">' +
-        '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
-        escapeHTML(r.phone) + '</span>' : '';
-      const notesHtml = r.notes ? '<div class="reservation-notes">' + escapeHTML(r.notes) + '</div>' : '';
-      html += '<div class="reservation-card" data-rid="' + r.id + '">' +
-                '<span class="reservation-meal-icon">' + MEAL_ICONS[meal] + '</span>' +
-                '<div class="reservation-main">' +
-                  '<span class="reservation-name">' + escapeHTML(r.name) + '</span>' +
-                  '<div class="reservation-meta">' + phoneHtml + '</div>' +
-                  notesHtml +
-                '</div>' +
-                '<span class="reservation-pax">' +
-                  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' +
-                  (r.pax || 1) +
-                '</span>' +
-                '<div class="reservation-actions">' +
-                  '<button class="reservation-action-btn" data-action="edit" title="Modifica">' +
-                    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
-                  '</button>' +
-                  '<button class="reservation-action-btn danger" data-action="delete" title="Elimina">' +
-                    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>' +
-                  '</button>' +
-                '</div>' +
-              '</div>';
-    });
+  if (visible.length === 0) {
+    container.innerHTML =
+      '<div class="reservation-empty">' +
+      '<p>Nessuna prenotazione per ' + MEAL_LABELS[mealFilter].toLowerCase() + '</p>' +
+      '</div>';
+    return;
+  }
+
+  const sorted = sortByTime(visible);
+
+  let html = '<table class="reservation-table">' +
+    '<thead><tr>' +
+      '<th>Nome</th>' +
+      '<th>Numero</th>' +
+      '<th>Ora</th>' +
+      '<th>Tavolo</th>' +
+      '<th>Stato</th>' +
+      '<th style="text-align:right">Azioni</th>' +
+    '</tr></thead><tbody>';
+
+  sorted.forEach(r => {
+    const meal = MEAL_ORDER.includes(r.meal) ? r.meal : 'pranzo';
+    const status = r.status === 'arrived' ? 'arrived' : 'confirmed';
+    const phone = r.phone ? escapeHTML(r.phone) : '<span class="res-meta-empty">--</span>';
+    const time  = r.time  ? escapeHTML(r.time)  : '<span class="res-meta-empty">--</span>';
+    const table = r.table ? escapeHTML(r.table) : '<span class="res-meta-empty">--</span>';
+    const notesPill = r.notes ? '<span class="res-notes-pill" title="' + escapeHTML(r.notes) + '">' + RES_ICONS.notes + 'note</span>' : '';
+    const statusHtml = (status === 'arrived')
+      ? '<span class="res-status res-status--arrived"><span class="status-dot"></span>Arrivato</span>'
+      : '<span class="res-status res-status--confirmed"><span class="status-dot"></span>Confermata</span>';
+    const confirmBtn = (status === 'arrived')
+      ? '<button class="res-confirm-btn res-confirm-btn--arrived" disabled>Arrivato</button>'
+      : '<button class="res-confirm-btn" data-action="confirm">' + RES_ICONS.check + 'Conferma arrivo</button>';
+
+    html += '<tr data-rid="' + r.id + '">' +
+      '<td><span class="res-cell-name"><span class="res-meal-mini">' + MEAL_ICONS[meal] + '</span>' + escapeHTML(r.name) +
+        '<span style="background:var(--accent);color:#fff;font-size:.7rem;padding:1px 7px;border-radius:999px;margin-left:6px;font-weight:600">' + (r.pax || 1) + ' pax</span>' +
+        notesPill + '</span></td>' +
+      '<td>' + phone + '</td>' +
+      '<td>' + time + '</td>' +
+      '<td>' + table + '</td>' +
+      '<td>' + statusHtml + '</td>' +
+      '<td><div class="res-action-cell">' +
+        confirmBtn +
+        '<button class="reservation-action-btn" data-action="edit" title="Modifica">' + RES_ICONS.edit + '</button>' +
+        '<button class="reservation-action-btn danger" data-action="delete" title="Elimina">' + RES_ICONS.trash + '</button>' +
+      '</div></td>' +
+    '</tr>';
   });
+  html += '</tbody></table>';
 
   container.innerHTML = html;
 
-  container.querySelectorAll('.reservation-action-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const card = btn.closest('.reservation-card');
-      const rid = card.dataset.rid;
-      const action = btn.dataset.action;
-      if (action === 'edit')   openReservationModal(rid);
-      if (action === 'delete') deleteReservation(rid);
+  container.querySelectorAll('tr[data-rid]').forEach(tr => {
+    tr.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rid = tr.dataset.rid;
+        const action = btn.dataset.action;
+        if (action === 'edit')    openReservationModal(rid);
+        if (action === 'delete')  deleteReservation(rid);
+        if (action === 'confirm') confirmArrival(rid);
+      });
     });
   });
+}
+
+function confirmArrival(rid) {
+  const dk = dateKey(reservationDate);
+  const list = reservations[dk] || [];
+  const r = list.find(x => x.id === rid);
+  if (!r) return;
+  r.status = 'arrived';
+  saveReservations();
+  renderReservations();
+}
+
+// Highlight + scroll to a row (used by search result click)
+function highlightReservationRow(rid) {
+  // Make sure the row is visible: clear meal filter if it would hide the row
+  const dk = dateKey(reservationDate);
+  const r = (reservations[dk] || []).find(x => x.id === rid);
+  if (!r) return;
+  if (mealFilter && r.meal !== mealFilter) {
+    mealFilter = null;
+    renderReservations();
+  }
+  // Find the row and scroll/highlight
+  setTimeout(() => {
+    const row = document.querySelector('tr[data-rid="' + rid + '"]');
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.remove('row-highlight');
+    // re-trigger animation
+    void row.offsetWidth;
+    row.classList.add('row-highlight');
+    setTimeout(() => row.classList.remove('row-highlight'), 1700);
+  }, 60);
 }
 
 function openReservationModal(rid) {
@@ -2264,6 +2352,8 @@ function openReservationModal(rid) {
   const paxI    = document.getElementById('reservationPax');
   const phoneI  = document.getElementById('reservationPhone');
   const notesI  = document.getElementById('reservationNotes');
+  const tableI  = document.getElementById('reservationTable');
+  const timeEl  = document.getElementById('reservationTime');
 
   if (rid) {
     const dk = dateKey(reservationDate);
@@ -2274,10 +2364,13 @@ function openReservationModal(rid) {
     paxI.value   = r.pax   || '';
     phoneI.value = r.phone || '';
     notesI.value = r.notes || '';
+    tableI.value = r.table || '';
+    renderTimePicker(timeEl, r.time || '');
     selectedMeal = r.meal || null;
   } else {
     title.textContent = 'Nuova prenotazione';
-    nameI.value = ''; paxI.value = ''; phoneI.value = ''; notesI.value = '';
+    nameI.value = ''; paxI.value = ''; phoneI.value = ''; notesI.value = ''; tableI.value = '';
+    renderTimePicker(timeEl, '');
     selectedMeal = null;
   }
 
@@ -2300,6 +2393,8 @@ function saveReservation() {
   const pax   = parseInt(document.getElementById('reservationPax').value) || 1;
   const phone = document.getElementById('reservationPhone').value.trim();
   const notes = document.getElementById('reservationNotes').value.trim();
+  const table = document.getElementById('reservationTable').value.trim();
+  const time  = getTimePickerValue(document.getElementById('reservationTime'));
 
   if (!name) { showToast('Inserisci il nome della prenotazione'); return; }
   if (!selectedMeal) { showToast('Seleziona il pasto (Colazione / Pranzo / Cena)'); return; }
@@ -2311,12 +2406,19 @@ function saveReservation() {
   if (editingReservationId) {
     const idx = reservations[dk].findIndex(r => r.id === editingReservationId);
     if (idx >= 0) {
-      reservations[dk][idx] = { id: editingReservationId, name, meal: selectedMeal, pax, phone, notes };
+      // Preserve existing status if editing
+      const prev = reservations[dk][idx];
+      reservations[dk][idx] = {
+        id: editingReservationId,
+        name, meal: selectedMeal, pax, phone, notes, table, time,
+        status: prev.status || 'confirmed'
+      };
     }
   } else {
     reservations[dk].push({
       id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      name, meal: selectedMeal, pax, phone, notes
+      name, meal: selectedMeal, pax, phone, notes, table, time,
+      status: 'confirmed'
     });
   }
   saveReservations();
@@ -2345,12 +2447,20 @@ function deleteReservation(rid) {
   const nextBtn = document.getElementById('prenNext');
   if (!prevBtn) return;
 
+  function clearSearchOnly() {
+    const si = document.getElementById('reservationSearch');
+    const sr = document.getElementById('reservationSearchResults');
+    if (si) si.value = '';
+    if (sr) sr.style.display = 'none';
+  }
   prevBtn.addEventListener('click', () => {
     reservationDate.setDate(reservationDate.getDate() - 1);
+    clearSearchOnly();
     renderReservations();
   });
   nextBtn.addEventListener('click', () => {
     reservationDate.setDate(reservationDate.getDate() + 1);
+    clearSearchOnly();
     renderReservations();
   });
 
@@ -2393,13 +2503,67 @@ function deleteReservation(rid) {
   });
   document.getElementById('reservationModalConfirm').addEventListener('click', saveReservation);
 
-  // Meal picker
+  // Meal picker (inside the modal)
   document.querySelectorAll('#reservationMealPicker .meal-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       selectedMeal = btn.dataset.meal;
       document.querySelectorAll('#reservationMealPicker .meal-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     });
+  });
+
+  // Meal filter icons (in the toolbar — restrict visible reservations)
+  document.querySelectorAll('#mealFilterIcons .meal-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const meal = btn.dataset.meal;
+      mealFilter = (mealFilter === meal) ? null : meal; // toggle
+      renderReservations();
+    });
+  });
+
+  // Search bar: filter today's reservations by name; click on a result jumps to row
+  const searchInput   = document.getElementById('reservationSearch');
+  const searchResults = document.getElementById('reservationSearchResults');
+
+  function renderSearchResults(q) {
+    if (!q) { searchResults.style.display = 'none'; searchResults.innerHTML = ''; return; }
+    const dk = dateKey(reservationDate);
+    const dayList = reservations[dk] || [];
+    const matches = dayList.filter(r => (r.name || '').toLowerCase().includes(q.toLowerCase()));
+    if (matches.length === 0) {
+      searchResults.innerHTML = '<div class="reservation-search-empty">Nessuna prenotazione corrisponde</div>';
+      searchResults.style.display = 'block';
+      return;
+    }
+    searchResults.innerHTML = matches.map(r => {
+      const meal = MEAL_ORDER.includes(r.meal) ? r.meal : 'pranzo';
+      const meta = (r.time ? r.time + ' • ' : '') + MEAL_LABELS[meal] + ' • ' + (r.pax || 1) + ' pax';
+      return '<div class="reservation-search-result" data-rid="' + r.id + '">' +
+               '<span class="res-meal-mini">' + MEAL_ICONS[meal] + '</span>' +
+               '<span>' + escapeHTML(r.name) + '</span>' +
+               '<span class="reservation-search-result-meta">' + meta + '</span>' +
+             '</div>';
+    }).join('');
+    searchResults.style.display = 'block';
+    searchResults.querySelectorAll('.reservation-search-result').forEach(el => {
+      el.addEventListener('click', () => {
+        const rid = el.dataset.rid;
+        searchInput.value = '';
+        searchResults.style.display = 'none';
+        highlightReservationRow(rid);
+      });
+    });
+  }
+
+  searchInput.addEventListener('input', (e) => renderSearchResults(e.target.value.trim()));
+  searchInput.addEventListener('focus', (e) => {
+    if (e.target.value.trim()) renderSearchResults(e.target.value.trim());
+  });
+  // Close search dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.reservation-search')) {
+      searchResults.style.display = 'none';
+    }
   });
 
   // Initial render
@@ -2409,8 +2573,13 @@ function deleteReservation(rid) {
 // Render when user navigates to Prenotazioni section
 document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item => {
   item.addEventListener('click', () => {
-    // Reset to today every time the section is opened
+    // Reset to today and clear filters every time the section is opened
     reservationDate = new Date();
+    mealFilter = null;
+    const searchInput = document.getElementById('reservationSearch');
+    if (searchInput) searchInput.value = '';
+    const searchResults = document.getElementById('reservationSearchResults');
+    if (searchResults) searchResults.style.display = 'none';
     renderReservations();
   });
 });
