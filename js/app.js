@@ -50,6 +50,7 @@ let customAreas = [];
 let operators = {};
 let shifts = {};
 let attendance = {};
+let reservations = {}; // { 'YYYY-MM-DD': [ { id, name, meal, pax, phone, notes } ] }
 let currentArea = null;
 let editingOperatorId = null;
 let deletingOperatorId = null;
@@ -101,6 +102,9 @@ function saveShifts() {
 }
 function saveAttendance() {
   db.collection('config').doc('attendance').set({ data: attendance });
+}
+function saveReservations() {
+  db.collection('config').doc('reservations').set({ data: reservations });
 }
 
 // ═══════════════════════════════════
@@ -200,6 +204,20 @@ function initRealtimeSync() {
       }
     }
   }, err => { console.error('Attendance sync error:', err); setSyncStatus(false); });
+
+  // Reservations
+  db.collection('config').doc('reservations').onSnapshot(doc => {
+    if (doc.exists && doc.data().data) {
+      reservations = doc.data().data;
+    } else {
+      reservations = {};
+    }
+    // Re-render if the Prenotazioni section is currently visible
+    const prenSection = document.getElementById('section-prenotazioni');
+    if (prenSection && prenSection.style.display !== 'none') {
+      renderReservations();
+    }
+  }, err => { console.error('Reservations sync error:', err); setSyncStatus(false); });
 }
 
 // ═══════════════════════════════════
@@ -2130,6 +2148,271 @@ document.addEventListener('click', (e) => {
     const panel = document.getElementById('riepilogoFilterPanel');
     if (panel) panel.style.display = 'none';
   }
+});
+
+// ═══════════════════════════════════
+// Prenotazioni (Reservations)
+// ═══════════════════════════════════
+function escapeHTML(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+let reservationDate = new Date();
+let editingReservationId = null;
+let selectedMeal = null;
+
+const MEAL_ICONS = {
+  colazione: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V10z"/><path d="M16 12h2a2 2 0 1 1 0 4h-2"/><path d="M8 5V3M12 5V3"/></svg>',
+  pranzo:    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+  cena:      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+};
+const MEAL_LABELS = { colazione: 'Colazione', pranzo: 'Pranzo', cena: 'Cena' };
+const MEAL_ORDER = ['colazione', 'pranzo', 'cena'];
+
+function formatReservationDateLabel(d) {
+  return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function renderReservations() {
+  const label = document.getElementById('prenDateLabel');
+  if (label) label.textContent = formatReservationDateLabel(reservationDate);
+
+  const container = document.getElementById('reservationsArea');
+  if (!container) return;
+
+  const dk = dateKey(reservationDate);
+  const dayList = reservations[dk] || [];
+
+  if (dayList.length === 0) {
+    container.innerHTML =
+      '<div class="reservation-empty">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+      '<p>Nessuna prenotazione per questo giorno</p>' +
+      '</div>';
+    return;
+  }
+
+  // Group by meal, in canonical order
+  const groups = {};
+  MEAL_ORDER.forEach(m => { groups[m] = []; });
+  dayList.forEach(r => {
+    const m = MEAL_ORDER.includes(r.meal) ? r.meal : 'pranzo';
+    groups[m].push(r);
+  });
+
+  let html = '';
+  MEAL_ORDER.forEach(meal => {
+    const items = groups[meal];
+    if (items.length === 0) return;
+    const totalPax = items.reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
+    html += '<div class="reservation-group-header">' +
+              '<span class="reservation-meal-icon">' + MEAL_ICONS[meal] + '</span>' +
+              '<span>' + MEAL_LABELS[meal] + '</span>' +
+              '<span class="group-count">' + items.length + ' • ' + totalPax + ' pax</span>' +
+            '</div>';
+    items.forEach(r => {
+      const phoneHtml = r.phone ? '<span class="reservation-meta-item">' +
+        '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>' +
+        escapeHTML(r.phone) + '</span>' : '';
+      const notesHtml = r.notes ? '<div class="reservation-notes">' + escapeHTML(r.notes) + '</div>' : '';
+      html += '<div class="reservation-card" data-rid="' + r.id + '">' +
+                '<span class="reservation-meal-icon">' + MEAL_ICONS[meal] + '</span>' +
+                '<div class="reservation-main">' +
+                  '<span class="reservation-name">' + escapeHTML(r.name) + '</span>' +
+                  '<div class="reservation-meta">' + phoneHtml + '</div>' +
+                  notesHtml +
+                '</div>' +
+                '<span class="reservation-pax">' +
+                  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' +
+                  (r.pax || 1) +
+                '</span>' +
+                '<div class="reservation-actions">' +
+                  '<button class="reservation-action-btn" data-action="edit" title="Modifica">' +
+                    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+                  '</button>' +
+                  '<button class="reservation-action-btn danger" data-action="delete" title="Elimina">' +
+                    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>' +
+                  '</button>' +
+                '</div>' +
+              '</div>';
+    });
+  });
+
+  container.innerHTML = html;
+
+  container.querySelectorAll('.reservation-action-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.reservation-card');
+      const rid = card.dataset.rid;
+      const action = btn.dataset.action;
+      if (action === 'edit')   openReservationModal(rid);
+      if (action === 'delete') deleteReservation(rid);
+    });
+  });
+}
+
+function openReservationModal(rid) {
+  editingReservationId = rid || null;
+  const overlay = document.getElementById('reservationModalOverlay');
+  const title   = document.getElementById('reservationModalTitle');
+  const nameI   = document.getElementById('reservationName');
+  const paxI    = document.getElementById('reservationPax');
+  const phoneI  = document.getElementById('reservationPhone');
+  const notesI  = document.getElementById('reservationNotes');
+
+  if (rid) {
+    const dk = dateKey(reservationDate);
+    const r = (reservations[dk] || []).find(x => x.id === rid);
+    if (!r) return;
+    title.textContent = 'Modifica prenotazione';
+    nameI.value  = r.name  || '';
+    paxI.value   = r.pax   || '';
+    phoneI.value = r.phone || '';
+    notesI.value = r.notes || '';
+    selectedMeal = r.meal || null;
+  } else {
+    title.textContent = 'Nuova prenotazione';
+    nameI.value = ''; paxI.value = ''; phoneI.value = ''; notesI.value = '';
+    selectedMeal = null;
+  }
+
+  document.querySelectorAll('#reservationMealPicker .meal-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.meal === selectedMeal);
+  });
+
+  overlay.classList.add('visible');
+  setTimeout(() => nameI.focus(), 50);
+}
+
+function closeReservationModal() {
+  document.getElementById('reservationModalOverlay').classList.remove('visible');
+  editingReservationId = null;
+  selectedMeal = null;
+}
+
+function saveReservation() {
+  const name  = document.getElementById('reservationName').value.trim();
+  const pax   = parseInt(document.getElementById('reservationPax').value) || 1;
+  const phone = document.getElementById('reservationPhone').value.trim();
+  const notes = document.getElementById('reservationNotes').value.trim();
+
+  if (!name) { showToast('Inserisci il nome della prenotazione'); return; }
+  if (!selectedMeal) { showToast('Seleziona il pasto (Colazione / Pranzo / Cena)'); return; }
+  if (pax < 1) { showToast('Numero persone non valido'); return; }
+
+  const dk = dateKey(reservationDate);
+  if (!reservations[dk]) reservations[dk] = [];
+
+  if (editingReservationId) {
+    const idx = reservations[dk].findIndex(r => r.id === editingReservationId);
+    if (idx >= 0) {
+      reservations[dk][idx] = { id: editingReservationId, name, meal: selectedMeal, pax, phone, notes };
+    }
+  } else {
+    reservations[dk].push({
+      id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name, meal: selectedMeal, pax, phone, notes
+    });
+  }
+  saveReservations();
+  closeReservationModal();
+  renderReservations();
+}
+
+function deleteReservation(rid) {
+  const dk = dateKey(reservationDate);
+  const r = (reservations[dk] || []).find(x => x.id === rid);
+  if (!r) return;
+  openGenericDeleteConfirm(
+    'Sei sicuro di voler eliminare la prenotazione di "' + r.name + '"?',
+    () => {
+      reservations[dk] = reservations[dk].filter(x => x.id !== rid);
+      if (reservations[dk].length === 0) delete reservations[dk];
+      saveReservations();
+      renderReservations();
+    }
+  );
+}
+
+// ─── Prenotazioni event wiring ───
+(function initPrenotazioni() {
+  const prevBtn = document.getElementById('prenPrev');
+  const nextBtn = document.getElementById('prenNext');
+  if (!prevBtn) return;
+
+  prevBtn.addEventListener('click', () => {
+    reservationDate.setDate(reservationDate.getDate() - 1);
+    renderReservations();
+  });
+  nextBtn.addEventListener('click', () => {
+    reservationDate.setDate(reservationDate.getDate() + 1);
+    renderReservations();
+  });
+
+  // Calendar dropdown
+  const prenCalDropdown = document.getElementById('prenCalDropdown');
+  document.getElementById('prenDateCalBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (prenCalDropdown.style.display === 'block') {
+      prenCalDropdown.style.display = 'none';
+      return;
+    }
+    // Close other dropdowns
+    if (typeof turniCalDropdown !== 'undefined') turniCalDropdown.style.display = 'none';
+    if (typeof orariCalDropdown !== 'undefined') orariCalDropdown.style.display = 'none';
+    renderCalDropdown(prenCalDropdown, currentMonthStart(), reservationDate, {
+      blockFuture: false,
+      onSelect: (d) => {
+        reservationDate = d;
+        renderReservations();
+      }
+    });
+  });
+
+  // Close calendar on outside click of its wrap (existing global listener already handles
+  // turni/orari; extend it implicitly via shared .date-cal-wrap check)
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.date-cal-wrap')) {
+      if (prenCalDropdown) prenCalDropdown.style.display = 'none';
+    }
+  });
+
+  // Add reservation
+  document.getElementById('addReservationBtn').addEventListener('click', () => openReservationModal(null));
+
+  // Modal events
+  document.getElementById('reservationModalClose').addEventListener('click', closeReservationModal);
+  document.getElementById('reservationModalCancel').addEventListener('click', closeReservationModal);
+  document.getElementById('reservationModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'reservationModalOverlay') closeReservationModal();
+  });
+  document.getElementById('reservationModalConfirm').addEventListener('click', saveReservation);
+
+  // Meal picker
+  document.querySelectorAll('#reservationMealPicker .meal-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectedMeal = btn.dataset.meal;
+      document.querySelectorAll('#reservationMealPicker .meal-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Initial render
+  renderReservations();
+})();
+
+// Render when user navigates to Prenotazioni section
+document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item => {
+  item.addEventListener('click', () => {
+    // Reset to today every time the section is opened
+    reservationDate = new Date();
+    renderReservations();
+  });
 });
 
 // ═══════════════════════════════════

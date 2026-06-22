@@ -2054,6 +2054,187 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   .filter-ops-list { max-height: 180px; }
 }
 
+/* ── Prenotazioni ── */
+.prenotazioni-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.reservation-card {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  transition: box-shadow var(--transition);
+}
+.reservation-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+
+.reservation-meal-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f5f5f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+}
+
+.reservation-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.reservation-name {
+  font-weight: 600;
+  color: #111;
+  font-size: .98rem;
+}
+.reservation-meta {
+  font-size: .82rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.reservation-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.reservation-notes {
+  font-size: .82rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.reservation-pax {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: .88rem;
+  padding: 4px 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reservation-actions {
+  display: flex;
+  gap: 6px;
+}
+.reservation-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid #e0e0e0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+.reservation-action-btn:hover { background: #f5f5f5; color: #111; }
+.reservation-action-btn.danger:hover { background: #fee; color: #c00; border-color: #fcc; }
+
+.reservation-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .88rem;
+  font-weight: 600;
+  color: #111;
+  margin: 18px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.reservation-group-header:first-child { margin-top: 0; }
+.reservation-group-header .group-count {
+  background: #f5f5f5;
+  color: var(--text-secondary);
+  font-size: .72rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.reservation-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+.reservation-empty svg {
+  width: 48px;
+  height: 48px;
+  opacity: .35;
+  margin-bottom: 12px;
+}
+.reservation-empty p { margin: 0; font-size: .92rem; }
+
+/* Reservation modal */
+.reservation-name-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: end;
+}
+.reservation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.modal-textarea {
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+}
+
+.meal-picker {
+  display: inline-flex;
+  gap: 6px;
+}
+.meal-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 0;
+}
+.meal-btn:hover { background: #f5f5f5; color: #111; }
+.meal-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .reservation-name-row,
+  .reservation-row { grid-template-columns: 1fr; }
+  .reservation-card { grid-template-columns: 32px 1fr; }
+  .reservation-pax, .reservation-actions { grid-column: 1 / -1; justify-self: end; }
+}
+
 /* ── Orari toolbar ── */
 .orari-toolbar {
   display: flex;
