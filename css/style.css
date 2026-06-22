@@ -2061,7 +2061,18 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 14px;
-  margin-bottom: 16px;
+  /* Extra spacing between the date toolbar and the white card below */
+  margin-bottom: 28px;
+}
+
+/* White card that wraps the search/filter/stats row and the reservations table.
+   Mirrors the Cooperto layout where everything sits inside a card-like surface. */
+.prenotazioni-card {
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 /* Search + meal filter + stats row */
@@ -2167,24 +2178,21 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   border-color: var(--accent);
 }
 
-/* Table view */
+/* Table view — sits inside .prenotazioni-card, so no outer border/background */
 .reservation-table {
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  background: transparent;
 }
 .reservation-table thead th {
-  background: #f5f5f5;
+  background: transparent;
   text-align: left;
   font-size: .78rem;
   font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: .04em;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid #eee;
   white-space: nowrap;
 }
@@ -2214,19 +2222,19 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #111;
 }
 .res-meal-mini {
   width: 22px;
   height: 22px;
-  border-radius: 50%;
-  background: #f5f5f5;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #111;
   flex-shrink: 0;
 }
+.res-meal-mini svg { width: 18px; height: 18px; color: #111; }
 .res-notes-pill {
   display: inline-flex;
   align-items: center;
@@ -2321,36 +2329,37 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   cursor: default;
 }
 
-/* Stats — inline at the right of the filter row */
+/* Stats — inline at the right of the filter row.
+   All icons are black; sized smaller to match the search/filter row height. */
 .reservation-stats {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 .reservation-stats-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
+  gap: 6px;
+  padding: 5px 10px;
   background: #fff;
-  border: 1px solid #eee;
+  border: 1px solid #e6e6e6;
   border-radius: var(--radius-xs);
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: .92rem;
   color: #111;
-  min-width: 70px;
 }
-.reservation-stats-item svg { color: #111; width: 22px; height: 22px; flex-shrink: 0; }
+.reservation-stats-item svg {
+  color: #111;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
 .reservation-stats-item .stats-count {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: .95rem;
   color: #111;
 }
-/* Variant tinting per state */
-.reservation-stats-item--total svg { color: var(--accent); }
-.reservation-stats-item--waiting svg { color: #d97706; }
-.reservation-stats-item--arrived svg { color: #1f8a3c; }
 
 .reservation-card {
   background: #fff;
