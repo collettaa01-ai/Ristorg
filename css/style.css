@@ -2485,6 +2485,11 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 /* Reservation modal */
 /* ── Reservation modal layout ── */
 .modal--reservation { max-width: 560px; }
+.modal--reservation .modal-body {
+  max-height: 72vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 .res-box {
   background: #fafafa;
@@ -2634,6 +2639,32 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   height: 36px;
   background: #fff;
 }
+
+/* ── Note actions (box 6) ── */
+.res-notes-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.res-notes-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: .82rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid #e0e0e0;
+  background: #fff;
+  color: #555;
+  transition: all var(--transition);
+}
+.res-notes-btn:hover { background: #f5f5f5; color: #111; }
+.res-notes-btn--save {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.res-notes-btn--save:hover { opacity: .88; }
 
 /* ── Necessità chips (box 5) ── */
 .res-needs {

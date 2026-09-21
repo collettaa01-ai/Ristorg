@@ -2617,6 +2617,19 @@ function deleteReservation(rid) {
     paxInput.value = paxInput.value.replace(/[^0-9]/g, '');
     if (paxInput.value === '' || parseInt(paxInput.value) < 1) paxInput.value = 1;
   });
+  paxInput.addEventListener('focus', () => paxInput.select());
+  paxInput.addEventListener('click', () => paxInput.select());
+
+  // Note: Salva (feedback visivo) e Svuota
+  document.getElementById('resNotesClear').addEventListener('click', () => {
+    document.getElementById('reservationNotes').value = '';
+    document.getElementById('reservationNotes').focus();
+  });
+  document.getElementById('resNotesSave').addEventListener('click', () => {
+    const btn = document.getElementById('resNotesSave');
+    btn.textContent = 'Salvato ✓';
+    setTimeout(() => { btn.textContent = 'Salva'; }, 1500);
+  });
 
   // Close res-cal-dropdown on outside click
   document.addEventListener('click', (e) => {
