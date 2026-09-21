@@ -2640,6 +2640,31 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   background: #fff;
 }
 
+/* ── Image-based icons in buttons ── */
+.need-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+}
+.meal-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  display: block;
+}
+/* active state: keep image visible, just highlight the border/bg */
+.res-need-btn.active {
+  background: rgba(249,115,22,.12);
+  border-color: var(--accent);
+}
+.meal-btn--img.active,
+.meal-filter-btn--img.active {
+  background: rgba(249,115,22,.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ── Note actions (box 6) ── */
 .res-notes-actions {
   display: flex;
