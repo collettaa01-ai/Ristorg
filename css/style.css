@@ -2483,26 +2483,98 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 .reservation-empty p { margin: 0; font-size: .92rem; }
 
 /* Reservation modal */
-.reservation-name-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 16px;
-  align-items: end;
+/* ── Reservation modal layout ── */
+.modal--reservation { max-width: 560px; }
+
+.res-box {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 12px 14px;
+  position: relative;
 }
-.reservation-row {
+.res-box-label {
+  display: block;
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.res-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 10px;
 }
-.modal-textarea {
-  resize: vertical;
-  min-height: 70px;
-  font-family: inherit;
+.mt-8  { margin-top: 8px; }
+.mt-12 { margin-top: 10px; }
+
+/* ── Date picker (box 1) ── */
+.res-date-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.res-day-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1.5px solid #e0e0e0;
+  background: #fff;
+  cursor: pointer;
+  min-width: 64px;
+  transition: all var(--transition);
+  font-size: .82rem;
+  line-height: 1.3;
+  color: #333;
+}
+.res-day-chip .day-name { font-size: .7rem; color: var(--text-secondary); }
+.res-day-chip .day-num  { font-size: 1.05rem; font-weight: 700; }
+.res-day-chip .day-month{ font-size: .7rem; color: var(--text-secondary); }
+.res-day-chip:hover,
+.res-day-chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.res-day-chip:hover .day-name,
+.res-day-chip:hover .day-month,
+.res-day-chip.active .day-name,
+.res-day-chip.active .day-month { color: rgba(255,255,255,.8); }
+
+.res-day-chip--cal {
+  min-width: 44px;
+  color: var(--text-secondary);
+}
+.res-day-chip--cal:hover { color: #fff; }
+
+/* inline calendar inside res-box */
+.res-cal-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 120;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  padding: 12px;
+  min-width: 260px;
 }
 
+/* ── Box 2+3 side by side ── */
+.res-box--half { flex: 1 1 0; min-width: 0; }
+.res-row.mt-12 { display: flex; gap: 10px; }
+
+/* ── Meal picker (box 3) ── */
 .meal-picker {
   display: inline-flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .meal-btn {
   width: 38px;
@@ -2525,7 +2597,144 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   border-color: var(--accent);
 }
 
+/* ── Coperti stepper (box 4) ── */
+.res-pax-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.res-pax-btn {
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+.res-pax-btn:hover { background: #f0f0f0; }
+.res-pax-input {
+  width: 48px;
+  text-align: center;
+  border: none;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  outline: none;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0;
+  height: 36px;
+  background: #fff;
+}
+
+/* ── Necessità chips (box 5) ── */
+.res-needs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.res-need-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  border: 1.5px solid #e0e0e0;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition);
+  padding: 0;
+}
+.res-need-btn:hover { background: #f5f5f5; color: #111; }
+.res-need-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* ── Note textarea (box 6) ── */
+.res-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e0e0e0;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: .9rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 60px;
+  background: #fff;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.res-textarea::placeholder { font-style: italic; color: #bbb; }
+.res-textarea:focus { border-color: var(--accent); }
+
+/* ── Recapiti inputs (box 7) ── */
+.res-contacts { display: flex; flex-direction: column; gap: 0; }
+.res-contact-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e0e0e0;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: .9rem;
+  font-family: inherit;
+  background: #fff;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.res-contact-input:focus { border-color: var(--accent); }
+.res-phone-wrap {
+  display: flex;
+  gap: 0;
+  min-width: 0;
+}
+.res-phone-prefix {
+  border: 1px solid #e0e0e0;
+  border-right: none;
+  border-radius: 7px 0 0 7px;
+  padding: 8px 6px;
+  font-size: .82rem;
+  background: #f5f5f5;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.res-contact-input--phone {
+  border-radius: 0 7px 7px 0;
+}
+
+/* legacy fields kept for backward compat with cards/list */
+.reservation-name-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: end;
+}
+.reservation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.modal-textarea {
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+}
+
 @media (max-width: 560px) {
+  .res-row { flex-direction: column; }
   .reservation-name-row,
   .reservation-row { grid-template-columns: 1fr; }
   .reservation-card { grid-template-columns: 32px 1fr; }
