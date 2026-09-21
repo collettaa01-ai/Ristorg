@@ -2642,16 +2642,30 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 
 /* ── Image-based icons in buttons ── */
 .need-icon {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
   display: block;
+  flex-shrink: 0;
+  max-width: 100%;
+  max-height: 100%;
 }
 .meal-icon {
   width: 20px;
   height: 20px;
   object-fit: contain;
   display: block;
+  flex-shrink: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+/* Ensure image buttons don't overflow */
+.res-need-btn,
+.meal-btn--img,
+.meal-filter-btn--img {
+  overflow: hidden;
+  padding: 6px;
+  box-sizing: border-box;
 }
 /* active state: keep image visible, just highlight the border/bg */
 .res-need-btn.active {
