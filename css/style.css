@@ -198,6 +198,19 @@ body {
   stroke: var(--text);
 }
 
+.nav-icon--img {
+  object-fit: contain;
+  opacity: 0.55;
+  transition: opacity var(--transition);
+}
+.nav-item:hover .nav-icon--img {
+  opacity: 0.85;
+}
+.nav-item.active .nav-icon--img {
+  opacity: 1;
+  filter: invert(44%) sepia(97%) saturate(700%) hue-rotate(1deg) brightness(103%);
+}
+
 .nav-label {
   white-space: nowrap;
   overflow: hidden;
