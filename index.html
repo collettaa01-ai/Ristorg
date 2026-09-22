@@ -359,10 +359,16 @@
 
       <!-- Gestione sale -->
       <section class="section" id="section-sale" style="display:none;">
-        <div class="coming-soon">
-          <img src="assets/icons/table-chairs.webp" width="64" height="64" style="object-fit:contain;opacity:.55;" alt="Gestione sale">
-          <h2>Gestione sale</h2>
-          <p>Questa sezione è in arrivo.</p>
+        <div class="sale-toolbar">
+          <button class="btn btn--primary" id="createSalaBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Crea una sala
+          </button>
+        </div>
+        <div class="sale-grid" id="saleGrid">
+          <!-- room boxes rendered by JS -->
         </div>
       </section>
     </div>
@@ -637,6 +643,71 @@
       <div class="modal-footer">
         <button class="btn btn--secondary" id="operatorModalCancel">Annulla</button>
         <button class="btn btn--primary" id="operatorModalConfirm">Conferma registrazione</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crea sala modal -->
+  <div class="modal-overlay" id="createSalaOverlay">
+    <div class="modal modal--reservation">
+      <div class="modal-header">
+        <h3>Crea una sala</h3>
+        <button class="modal-close" id="createSalaClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="createSalaBody">
+
+        <!-- BOX 1: Nome Sala -->
+        <div class="res-box">
+          <span class="res-box-label">Nome Sala</span>
+          <input type="text" id="salaName" class="res-contact-input" placeholder="scrivi il nome della sala" style="font-style:italic;" autocomplete="off">
+        </div>
+
+        <!-- BOX 2: Capienza della sala -->
+        <div class="res-box mt-12">
+          <span class="res-box-label">Capienza della sala</span>
+          <div class="res-pax-control">
+            <button type="button" class="res-pax-btn" id="salaCapMinus">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <input type="text" id="salaCap" class="res-pax-input" value="10" inputmode="numeric">
+            <button type="button" class="res-pax-btn" id="salaCapPlus">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- BOX 3: Operatori della sala -->
+        <div class="res-box mt-12">
+          <span class="res-box-label">Operatori della sala</span>
+          <div class="res-pax-control">
+            <button type="button" class="res-pax-btn" id="salaOpMinus">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <input type="text" id="salaOp" class="res-pax-input" value="1" inputmode="numeric">
+            <button type="button" class="res-pax-btn" id="salaOpPlus">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- BOX 4: Note -->
+        <div class="res-box mt-12">
+          <span class="res-box-label">Note</span>
+          <textarea id="salaNote" class="res-textarea" placeholder="Aggiungi note"></textarea>
+          <div class="res-notes-actions">
+            <button type="button" class="res-notes-btn" id="salaNotesClear">Svuota</button>
+            <button type="button" class="res-notes-btn res-notes-btn--save" id="salaNotesSave">Salva</button>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="createSalaCancel">Annulla</button>
+        <button class="btn btn--primary" id="createSalaSave">Salva</button>
       </div>
     </div>
   </div>

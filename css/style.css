@@ -2768,6 +2768,47 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 .res-textarea::placeholder { font-style: italic; color: #bbb; }
 .res-textarea:focus { border-color: var(--accent); }
 
+/* ── Gestione sale ── */
+.sale-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+.sale-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+.sala-box {
+  background: #fff;
+  border: 1.5px solid #e8e8e8;
+  border-radius: 12px;
+  padding: 20px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+.sala-box:hover {
+  box-shadow: 0 3px 10px rgba(0,0,0,.09);
+  border-color: #d0d0d0;
+}
+.sala-box__icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  opacity: .6;
+}
+.sala-box__name {
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  word-break: break-word;
+}
+
 /* ── Recapiti inputs (box 7) ── */
 .res-contacts { display: flex; flex-direction: column; gap: 0; }
 .res-contact-input {
@@ -3163,3 +3204,4 @@ button:focus-visible,
     -webkit-overflow-scrolling: touch;
   }
 }
+

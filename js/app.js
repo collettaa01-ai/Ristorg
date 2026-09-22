@@ -2715,6 +2715,109 @@ document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item
 });
 
 // ═══════════════════════════════════
+// Gestione sale
+// ═══════════════════════════════════
+(function initSale() {
+  const createBtn  = document.getElementById('createSalaBtn');
+  const overlay    = document.getElementById('createSalaOverlay');
+  const closeBtn   = document.getElementById('createSalaClose');
+  const cancelBtn  = document.getElementById('createSalaCancel');
+  const saveBtn    = document.getElementById('createSalaSave');
+  const saleGrid   = document.getElementById('saleGrid');
+  if (!createBtn) return;
+
+  const nameInput  = document.getElementById('salaName');
+  const capInput   = document.getElementById('salaCap');
+  const opInput    = document.getElementById('salaOp');
+  const noteTA     = document.getElementById('salaNote');
+  const notesClear = document.getElementById('salaNotesClear');
+  const notesSave  = document.getElementById('salaNotesSave');
+  const modalBody  = document.getElementById('createSalaBody');
+
+  let rooms = [];
+
+  function makeStepper(input, step, min) {
+    input.addEventListener('focus', () => input.select());
+    input.addEventListener('click', () => input.select());
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/[^0-9]/g, '');
+    });
+    input.addEventListener('blur', () => {
+      let v = parseInt(input.value, 10);
+      if (isNaN(v) || v < min) v = min;
+      input.value = v;
+    });
+    document.getElementById(input.id + 'Minus').addEventListener('click', () => {
+      let v = parseInt(input.value, 10) || min;
+      v = Math.max(min, v - step);
+      input.value = v;
+    });
+    document.getElementById(input.id + 'Plus').addEventListener('click', () => {
+      let v = parseInt(input.value, 10) || min;
+      input.value = v + step;
+    });
+  }
+
+  makeStepper(capInput, 5, 1);
+  makeStepper(opInput,  1, 1);
+
+  // notes clear / save
+  notesClear.addEventListener('click', () => { noteTA.value = ''; });
+  notesSave.addEventListener('click', () => { noteTA.blur(); });
+
+  // name input: remove italic when typing
+  nameInput.addEventListener('input', () => {
+    nameInput.style.fontStyle = nameInput.value ? 'normal' : 'italic';
+  });
+
+  function openModal() {
+    nameInput.value = '';
+    nameInput.style.fontStyle = 'italic';
+    capInput.value = '10';
+    opInput.value  = '1';
+    noteTA.value   = '';
+    overlay.classList.add('visible');
+    nameInput.focus({ preventScroll: true });
+    requestAnimationFrame(() => { if (modalBody) modalBody.scrollTop = 0; });
+  }
+
+  function closeModal() {
+    overlay.classList.remove('visible');
+  }
+
+  function renderRooms() {
+    saleGrid.innerHTML = '';
+    rooms.forEach(r => {
+      const box = document.createElement('div');
+      box.className = 'sala-box';
+      box.innerHTML = `
+        <img src="assets/icons/table-chairs.webp" class="sala-box__icon" alt="">
+        <span class="sala-box__name">${r.name}</span>
+      `;
+      saleGrid.appendChild(box);
+    });
+  }
+
+  createBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+  saveBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+    rooms.push({
+      name,
+      capienza: parseInt(capInput.value, 10) || 10,
+      operatori: parseInt(opInput.value, 10) || 1,
+      note: noteTA.value.trim()
+    });
+    renderRooms();
+    closeModal();
+  });
+})();
+
+// ═══════════════════════════════════
 // Initialize: start Firestore listeners
 // ═══════════════════════════════════
 initRealtimeSync();
