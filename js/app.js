@@ -2457,10 +2457,10 @@ function openReservationModal(rid) {
   });
 
   overlay.classList.add('visible');
-  // reset scroll to top every time the modal opens
   const modalBody = overlay.querySelector('.modal-body');
-  if (modalBody) modalBody.scrollTop = 0;
-  setTimeout(() => firstI.focus(), 50);
+  // focus senza scorrere, poi forza lo scroll in cima
+  if (firstI) firstI.focus({ preventScroll: true });
+  if (modalBody) { modalBody.scrollTop = 0; requestAnimationFrame(() => { modalBody.scrollTop = 0; }); }
 }
 
 function closeReservationModal() {
