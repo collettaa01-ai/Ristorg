@@ -51,6 +51,7 @@ let operators = {};
 let shifts = {};
 let attendance = {};
 let reservations = {}; // { 'YYYY-MM-DD': [ { id, name, meal, pax, phone, notes } ] }
+let rooms = []; // [ { id, name, capienza, operatori, note } ]
 let currentArea = null;
 let editingOperatorId = null;
 let deletingOperatorId = null;
@@ -105,6 +106,9 @@ function saveAttendance() {
 }
 function saveReservations() {
   db.collection('config').doc('reservations').set({ data: reservations });
+}
+function saveSale() {
+  db.collection('config').doc('sale').set({ data: rooms });
 }
 
 // ═══════════════════════════════════
@@ -218,6 +222,13 @@ function initRealtimeSync() {
       renderReservations();
     }
   }, err => { console.error('Reservations sync error:', err); setSyncStatus(false); });
+
+  // Sale
+  db.collection('config').doc('sale').onSnapshot(doc => {
+    rooms = (doc.exists && doc.data().data) ? doc.data().data : [];
+    const saleGrid = document.getElementById('saleGrid');
+    if (saleGrid) renderSaleGrid(saleGrid);
+  }, err => { console.error('Sale sync error:', err); });
 }
 
 // ═══════════════════════════════════
@@ -2717,6 +2728,19 @@ document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item
 // ═══════════════════════════════════
 // Gestione sale
 // ═══════════════════════════════════
+function renderSaleGrid(grid) {
+  grid.innerHTML = '';
+  rooms.forEach(r => {
+    const box = document.createElement('div');
+    box.className = 'sala-box';
+    box.innerHTML = `
+      <img src="assets/icons/table-chairs.webp" class="sala-box__icon" alt="">
+      <span class="sala-box__name">${r.name}</span>
+    `;
+    grid.appendChild(box);
+  });
+}
+
 (function initSale() {
   const createBtn  = document.getElementById('createSalaBtn');
   const overlay    = document.getElementById('createSalaOverlay');
@@ -2733,8 +2757,6 @@ document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item
   const notesClear = document.getElementById('salaNotesClear');
   const notesSave  = document.getElementById('salaNotesSave');
   const modalBody  = document.getElementById('createSalaBody');
-
-  let rooms = [];
 
   function makeStepper(input, step, min) {
     input.addEventListener('focus', () => input.select());
@@ -2761,11 +2783,9 @@ document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item
   makeStepper(capInput, 5, 1);
   makeStepper(opInput,  1, 1);
 
-  // notes clear / save
   notesClear.addEventListener('click', () => { noteTA.value = ''; });
-  notesSave.addEventListener('click', () => { noteTA.blur(); });
+  notesSave.addEventListener('click',  () => { noteTA.blur(); });
 
-  // name input: remove italic when typing
   nameInput.addEventListener('input', () => {
     nameInput.style.fontStyle = nameInput.value ? 'normal' : 'italic';
   });
@@ -2785,34 +2805,23 @@ document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item
     overlay.classList.remove('visible');
   }
 
-  function renderRooms() {
-    saleGrid.innerHTML = '';
-    rooms.forEach(r => {
-      const box = document.createElement('div');
-      box.className = 'sala-box';
-      box.innerHTML = `
-        <img src="assets/icons/table-chairs.webp" class="sala-box__icon" alt="">
-        <span class="sala-box__name">${r.name}</span>
-      `;
-      saleGrid.appendChild(box);
-    });
-  }
-
   createBtn.addEventListener('click', openModal);
-  closeBtn.addEventListener('click', closeModal);
-  cancelBtn.addEventListener('click', closeModal);
+  closeBtn.addEventListener('click',   closeModal);
+  cancelBtn.addEventListener('click',  closeModal);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
 
   saveBtn.addEventListener('click', () => {
     const name = nameInput.value.trim();
     if (!name) { nameInput.focus(); return; }
     rooms.push({
+      id: Date.now().toString(),
       name,
-      capienza: parseInt(capInput.value, 10) || 10,
-      operatori: parseInt(opInput.value, 10) || 1,
+      capienza:  parseInt(capInput.value, 10) || 10,
+      operatori: parseInt(opInput.value,  10) || 1,
       note: noteTA.value.trim()
     });
-    renderRooms();
+    saveSale();
+    renderSaleGrid(saleGrid);
     closeModal();
   });
 })();
