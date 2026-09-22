@@ -2674,9 +2674,14 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 }
 .meal-btn--img.active,
 .meal-filter-btn--img.active {
-  background: rgba(249,115,22,.12);
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
+  color: #fff;
+}
+.meal-filter-btn--img.active .meal-icon,
+.meal-btn--img.active .meal-icon {
+  mix-blend-mode: multiply;
+  filter: brightness(10);
 }
 
 /* ── Note actions (box 6) ── */
