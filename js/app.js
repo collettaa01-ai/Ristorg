@@ -2457,6 +2457,9 @@ function openReservationModal(rid) {
   });
 
   overlay.classList.add('visible');
+  // reset scroll to top every time the modal opens
+  const modalBody = overlay.querySelector('.modal-body');
+  if (modalBody) modalBody.scrollTop = 0;
   setTimeout(() => firstI.focus(), 50);
 }
 
