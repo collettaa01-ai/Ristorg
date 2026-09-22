@@ -2728,6 +2728,9 @@ document.querySelectorAll('.nav-item[data-section="prenotazioni"]').forEach(item
 // ═══════════════════════════════════
 // Gestione sale
 // ═══════════════════════════════════
+const SALA_EDIT_SVG   = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const SALA_TRASH_SVG  = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+
 function renderSaleGrid(grid) {
   grid.innerHTML = '';
   rooms.forEach(r => {
@@ -2735,7 +2738,11 @@ function renderSaleGrid(grid) {
     box.className = 'sala-box';
     box.innerHTML = `
       <img src="assets/icons/table-chairs.webp" class="sala-box__icon" alt="">
-      <span class="sala-box__name">${r.name}</span>
+      <span class="sala-box__name">${escapeHTML(r.name)}</span>
+      <div class="sala-box__actions">
+        <button class="reservation-action-btn sala-edit-btn" data-id="${r.id}" title="Modifica">${SALA_EDIT_SVG}</button>
+        <button class="reservation-action-btn danger sala-delete-btn" data-id="${r.id}" title="Elimina">${SALA_TRASH_SVG}</button>
+      </div>
     `;
     grid.appendChild(box);
   });
@@ -2744,6 +2751,7 @@ function renderSaleGrid(grid) {
 (function initSale() {
   const createBtn  = document.getElementById('createSalaBtn');
   const overlay    = document.getElementById('createSalaOverlay');
+  const modalTitle = overlay ? overlay.querySelector('h3') : null;
   const closeBtn   = document.getElementById('createSalaClose');
   const cancelBtn  = document.getElementById('createSalaCancel');
   const saveBtn    = document.getElementById('createSalaSave');
@@ -2757,6 +2765,8 @@ function renderSaleGrid(grid) {
   const notesClear = document.getElementById('salaNotesClear');
   const notesSave  = document.getElementById('salaNotesSave');
   const modalBody  = document.getElementById('createSalaBody');
+
+  let editingId = null; // null = create mode, string = edit mode
 
   function makeStepper(input, step, min) {
     input.addEventListener('focus', () => input.select());
@@ -2790,12 +2800,14 @@ function renderSaleGrid(grid) {
     nameInput.style.fontStyle = nameInput.value ? 'normal' : 'italic';
   });
 
-  function openModal() {
-    nameInput.value = '';
-    nameInput.style.fontStyle = 'italic';
-    capInput.value = '10';
-    opInput.value  = '1';
-    noteTA.value   = '';
+  function openModal(room) {
+    editingId = room ? room.id : null;
+    if (modalTitle) modalTitle.textContent = room ? 'Modifica sala' : 'Crea una sala';
+    nameInput.value       = room ? room.name      : '';
+    nameInput.style.fontStyle = (room && room.name) ? 'normal' : 'italic';
+    capInput.value        = room ? room.capienza   : '10';
+    opInput.value         = room ? room.operatori  : '1';
+    noteTA.value          = room ? (room.note || '') : '';
     overlay.classList.add('visible');
     nameInput.focus({ preventScroll: true });
     requestAnimationFrame(() => { if (modalBody) modalBody.scrollTop = 0; });
@@ -2803,9 +2815,10 @@ function renderSaleGrid(grid) {
 
   function closeModal() {
     overlay.classList.remove('visible');
+    editingId = null;
   }
 
-  createBtn.addEventListener('click', openModal);
+  createBtn.addEventListener('click', () => openModal(null));
   closeBtn.addEventListener('click',   closeModal);
   cancelBtn.addEventListener('click',  closeModal);
   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
@@ -2813,16 +2826,37 @@ function renderSaleGrid(grid) {
   saveBtn.addEventListener('click', () => {
     const name = nameInput.value.trim();
     if (!name) { nameInput.focus(); return; }
-    rooms.push({
-      id: Date.now().toString(),
+    const data = {
       name,
       capienza:  parseInt(capInput.value, 10) || 10,
       operatori: parseInt(opInput.value,  10) || 1,
       note: noteTA.value.trim()
-    });
+    };
+    if (editingId) {
+      const idx = rooms.findIndex(r => r.id === editingId);
+      if (idx !== -1) rooms[idx] = { ...rooms[idx], ...data };
+    } else {
+      rooms.push({ id: Date.now().toString(), ...data });
+    }
     saveSale();
     renderSaleGrid(saleGrid);
     closeModal();
+  });
+
+  // Edit / delete delegation on the grid
+  saleGrid.addEventListener('click', e => {
+    const editBtn   = e.target.closest('.sala-edit-btn');
+    const deleteBtn = e.target.closest('.sala-delete-btn');
+    if (editBtn) {
+      const room = rooms.find(r => r.id === editBtn.dataset.id);
+      if (room) openModal(room);
+    }
+    if (deleteBtn) {
+      const id = deleteBtn.dataset.id;
+      rooms = rooms.filter(r => r.id !== id);
+      saveSale();
+      renderSaleGrid(saleGrid);
+    }
   });
 })();
 

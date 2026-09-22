@@ -2808,6 +2808,11 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   text-align: center;
   word-break: break-word;
 }
+.sala-box__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
 
 /* ── Recapiti inputs (box 7) ── */
 .res-contacts { display: flex; flex-direction: column; gap: 0; }
