@@ -265,7 +265,7 @@ const areaDetail = document.getElementById('areaDetail');
 const areaDetailTitle = document.getElementById('areaDetailTitle');
 const addAreaCard = document.getElementById('addAreaCard');
 
-const sectionTitles = { dipendenti: 'Gestione dipendenti', prenotazioni: 'Prenotazioni' };
+const sectionTitles = { dipendenti: 'Gestione dipendenti', prenotazioni: 'Prenotazioni', sale: 'Gestione sale' };
 
 // ═══════════════════════════════════
 // Sidebar toggle (mobile overlay)
