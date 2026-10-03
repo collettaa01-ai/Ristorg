@@ -2930,6 +2930,7 @@ function renderSaleGrid(grid) {
     saleToolbar.style.display = 'none';
     saleGrid.style.display    = 'none';
     salaDetail.style.display  = 'block';
+    renderPiantinaView();
   }
 
   function closeSalaDetail() {
@@ -2991,6 +2992,296 @@ function renderSaleGrid(grid) {
     const box = e.target.closest('.sala-box');
     if (box && box.dataset.id) openSalaDetail(box.dataset.id);
   });
+
+  // ────────────────────────────────────────────
+  // Piantina (floor plan) management
+  // ────────────────────────────────────────────
+  const TABLE_SHAPE_SVG = {
+    quadrato:   '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>',
+    rettangolo: '<svg viewBox="0 0 32 22" fill="currentColor"><rect x="1" y="3" width="30" height="16" rx="2"/></svg>',
+    rotondo:    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>'
+  };
+  const SHAPE_LABEL = { quadrato: 'Quad.', rettangolo: 'Rett.', rotondo: 'Rond.' };
+
+  let piantinaEditing = null;
+  let activePCell     = null;
+  let shapesLit       = false;
+  let changingPShape  = false;
+  let pendingPForma   = null;
+  let deletePSrc      = null;
+
+  const creaPiantinaOv  = document.getElementById('creaPiantinaOverlay');
+  const modificaPOv     = document.getElementById('modificaPiantinaOverlay');
+  const tableInfoOv     = document.getElementById('tableInfoOverlay');
+  const cellOptionsOv   = document.getElementById('cellOptionsOverlay');
+  const deletePOv       = document.getElementById('deletePiantinaOverlay');
+  const editGridEl      = document.getElementById('piantinaEditGrid');
+  const shapeIconListEl = document.getElementById('piantinaShapeIconList');
+  const tableInfoCapEl  = document.getElementById('tableInfoCap');
+
+  function renderPiantinaView() {
+    const addBtn   = document.getElementById('salaPiantinaAddBtn');
+    const viewArea = document.getElementById('piantinaViewArea');
+    const viewGrid = document.getElementById('piantinaViewGrid');
+    if (!addBtn || !viewArea || !viewGrid) return;
+    const room = rooms.find(r => r.id === currentSalaId);
+    const p    = room && room.piantina;
+    if (p) {
+      addBtn.disabled = true;
+      addBtn.classList.add('disabled');
+      viewGrid.style.gridTemplateColumns = `repeat(${p.cols}, 34px)`;
+      viewGrid.innerHTML = '';
+      for (let r = 0; r < p.rows; r++) {
+        for (let c = 0; c < p.cols; c++) {
+          const key = `${r}-${c}`;
+          const td  = p.cells && p.cells[key];
+          const cell = document.createElement('div');
+          cell.className = 'piantina-cell' + (td ? ' occupied' : '');
+          if (td) {
+            cell.innerHTML =
+              '<div class="piantina-cell-inner">' +
+                '<div class="piantina-table-icon">' + (TABLE_SHAPE_SVG[td.forma] || '') + '</div>' +
+                '<span class="piantina-cell-num">' + escapeHTML(td.numerativo || '') + '</span>' +
+              '</div>' +
+              '<div class="piantina-cell-tooltip">' +
+                '<strong>Tavolo ' + escapeHTML(td.numerativo || '—') + '</strong>' +
+                '<div>Coperti: ' + (td.coperti || 0) + '</div>' +
+                (td.note ? '<div>' + escapeHTML(td.note) + '</div>' : '') +
+              '</div>';
+          }
+          viewGrid.appendChild(cell);
+        }
+      }
+      viewArea.style.display = 'block';
+    } else {
+      addBtn.disabled = false;
+      addBtn.classList.remove('disabled');
+      viewArea.style.display = 'none';
+    }
+  }
+
+  // ── Creation popup ──
+  (function() {
+    const forma    = document.getElementById('piantinaForma');
+    const numInput = document.getElementById('piantinaNum');
+    const chips    = Array.from(document.querySelectorAll('.piantina-shape-chip'));
+
+    document.getElementById('salaPiantinaAddBtn').addEventListener('click', () => {
+      if (document.getElementById('salaPiantinaAddBtn').disabled) return;
+      forma.value = ''; numInput.value = '4';
+      chips.forEach(c => c.classList.remove('active'));
+      creaPiantinaOv.classList.add('visible');
+    });
+    chips.forEach(ch => ch.addEventListener('click', () => ch.classList.toggle('active')));
+    document.getElementById('piantinaNumMinus').addEventListener('click', () => {
+      numInput.value = Math.max(1, (parseInt(numInput.value) || 1) - 1);
+    });
+    document.getElementById('piantinaNumPlus').addEventListener('click', () => {
+      numInput.value = (parseInt(numInput.value) || 1) + 1;
+    });
+    numInput.addEventListener('input', () => {
+      numInput.value = numInput.value.replace(/[^0-9]/g, '');
+    });
+    function closeCreaPiantina() { creaPiantinaOv.classList.remove('visible'); }
+    document.getElementById('creaPiantinaClose').addEventListener('click', closeCreaPiantina);
+    document.getElementById('creaPiantinaCancel').addEventListener('click', closeCreaPiantina);
+    creaPiantinaOv.addEventListener('click', e => { if (e.target === creaPiantinaOv) closeCreaPiantina(); });
+
+    document.getElementById('creaPiantinaConfirm').addEventListener('click', () => {
+      const f = forma.value;
+      if (!f) { forma.focus(); return; }
+      const sel = chips.filter(c => c.classList.contains('active')).map(c => c.dataset.shape);
+      if (!sel.length) return;
+      const n    = parseInt(numInput.value) || 4;
+      const size = f === 'quadrata' ? { rows: 6, cols: 6 } : { rows: 5, cols: 9 };
+      const idx  = rooms.findIndex(r => r.id === currentSalaId);
+      if (idx === -1) return;
+      rooms[idx].piantina = { forma: f, formeTaboli: sel, numTavoli: n, ...size, cells: {} };
+      saveSale();
+      closeCreaPiantina();
+      renderPiantinaView();
+    });
+  })();
+
+  // ── View buttons ──
+  document.getElementById('piantinaViewModificaBtn').addEventListener('click', openModificaPiantina);
+  document.getElementById('piantinaViewEliminaBtn').addEventListener('click', () => {
+    deletePSrc = 'view';
+    deletePOv.classList.add('visible');
+  });
+
+  // ── Delete piantina confirm ──
+  (function() {
+    function closeDeleteP() { deletePOv.classList.remove('visible'); }
+    document.getElementById('deletePiantinaClose').addEventListener('click', closeDeleteP);
+    document.getElementById('deletePiantinaCancel').addEventListener('click', closeDeleteP);
+    deletePOv.addEventListener('click', e => { if (e.target === deletePOv) closeDeleteP(); });
+    document.getElementById('deletePiantinaConfirm').addEventListener('click', () => {
+      const idx = rooms.findIndex(r => r.id === currentSalaId);
+      if (idx !== -1) { rooms[idx].piantina = null; saveSale(); }
+      if (deletePSrc === 'modifica') modificaPOv.classList.remove('visible');
+      closeDeleteP();
+      renderPiantinaView();
+    });
+  })();
+
+  // ── Modifica helpers ──
+  function renderShapePanel() {
+    shapeIconListEl.innerHTML = '';
+    if (!piantinaEditing) return;
+    piantinaEditing.formeTaboli.forEach(shape => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'piantina-shape-icon-btn' + (shapesLit ? ' shapes-lit' : '');
+      btn.dataset.shape = shape;
+      btn.innerHTML = (TABLE_SHAPE_SVG[shape] || '') + '<span class="shape-label">' + (SHAPE_LABEL[shape] || shape) + '</span>';
+      btn.addEventListener('click', () => {
+        if (!shapesLit) return;
+        pendingPForma = shape;
+        const key = `${activePCell.row}-${activePCell.col}`;
+        openTableInfo(changingPShape ? (piantinaEditing.cells[key] || {}) : null);
+      });
+      shapeIconListEl.appendChild(btn);
+    });
+  }
+
+  function renderEditGrid() {
+    if (!piantinaEditing) return;
+    editGridEl.style.gridTemplateColumns = `repeat(${piantinaEditing.cols}, 38px)`;
+    editGridEl.innerHTML = '';
+    for (let r = 0; r < piantinaEditing.rows; r++) {
+      for (let c = 0; c < piantinaEditing.cols; c++) {
+        const key = `${r}-${c}`;
+        const td  = piantinaEditing.cells && piantinaEditing.cells[key];
+        const sel = activePCell && activePCell.row === r && activePCell.col === c;
+        const cell = document.createElement('div');
+        cell.className = 'piantina-cell-edit ' + (td ? 'occupied' : 'empty') + (sel ? ' selected' : '');
+        if (td) {
+          cell.innerHTML =
+            '<div class="piantina-cell-edit-inner">' +
+              (TABLE_SHAPE_SVG[td.forma] || '') +
+              '<span class="piantina-cell-edit-num">' + escapeHTML(td.numerativo || '') + '</span>' +
+            '</div>';
+        }
+        cell.addEventListener('click', () => {
+          if (td) {
+            activePCell = { row: r, col: c };
+            cellOptionsOv.classList.add('visible');
+          } else {
+            activePCell    = { row: r, col: c };
+            shapesLit      = true;
+            changingPShape = false;
+            renderShapePanel();
+            renderEditGrid();
+          }
+        });
+        editGridEl.appendChild(cell);
+      }
+    }
+  }
+
+  function openModificaPiantina() {
+    const room = rooms.find(r => r.id === currentSalaId);
+    if (!room || !room.piantina) return;
+    piantinaEditing = JSON.parse(JSON.stringify(room.piantina));
+    activePCell = null; shapesLit = false; changingPShape = false; pendingPForma = null;
+    renderShapePanel();
+    renderEditGrid();
+    modificaPOv.classList.add('visible');
+  }
+
+  // ── Modifica popup buttons ──
+  (function() {
+    function closeModifica() { modificaPOv.classList.remove('visible'); }
+    document.getElementById('modificaPiantinaClose').addEventListener('click', closeModifica);
+    document.getElementById('modificaPiantinaCancel').addEventListener('click', closeModifica);
+    modificaPOv.addEventListener('click', e => { if (e.target === modificaPOv) closeModifica(); });
+    document.getElementById('modificaPiantinaSalva').addEventListener('click', () => {
+      const idx = rooms.findIndex(r => r.id === currentSalaId);
+      if (idx !== -1) {
+        rooms[idx].piantina = JSON.parse(JSON.stringify(piantinaEditing));
+        saveSale();
+      }
+      closeModifica();
+      renderPiantinaView();
+    });
+    document.getElementById('modificaPiantinaElimina').addEventListener('click', () => {
+      deletePSrc = 'modifica';
+      deletePOv.classList.add('visible');
+    });
+  })();
+
+  // ── Cell options ──
+  (function() {
+    function closeCellOpts() { cellOptionsOv.classList.remove('visible'); }
+    document.getElementById('cellOptionsClose').addEventListener('click', closeCellOpts);
+    cellOptionsOv.addEventListener('click', e => { if (e.target === cellOptionsOv) closeCellOpts(); });
+
+    document.getElementById('cellOptEditInfo').addEventListener('click', () => {
+      const key = `${activePCell.row}-${activePCell.col}`;
+      const existing = piantinaEditing.cells[key];
+      pendingPForma  = existing && existing.forma;
+      changingPShape = false;
+      closeCellOpts();
+      openTableInfo(existing);
+    });
+    document.getElementById('cellOptDeleteTable').addEventListener('click', () => {
+      const key = `${activePCell.row}-${activePCell.col}`;
+      delete piantinaEditing.cells[key];
+      activePCell = null; shapesLit = false;
+      closeCellOpts();
+      renderShapePanel();
+      renderEditGrid();
+    });
+    document.getElementById('cellOptChangeShape').addEventListener('click', () => {
+      changingPShape = true; shapesLit = true;
+      closeCellOpts();
+      renderShapePanel();
+      renderEditGrid();
+    });
+  })();
+
+  // ── Table info popup ──
+  (function() {
+    document.getElementById('tableInfoCapMinus').addEventListener('click', () => {
+      tableInfoCapEl.value = Math.max(1, (parseInt(tableInfoCapEl.value) || 2) - 1);
+    });
+    document.getElementById('tableInfoCapPlus').addEventListener('click', () => {
+      tableInfoCapEl.value = (parseInt(tableInfoCapEl.value) || 2) + 1;
+    });
+    tableInfoCapEl.addEventListener('input', () => {
+      tableInfoCapEl.value = tableInfoCapEl.value.replace(/[^0-9]/g, '');
+    });
+    function closeTableInfo() { tableInfoOv.classList.remove('visible'); }
+    document.getElementById('tableInfoClose').addEventListener('click', closeTableInfo);
+    document.getElementById('tableInfoCancel').addEventListener('click', closeTableInfo);
+    tableInfoOv.addEventListener('click', e => { if (e.target === tableInfoOv) closeTableInfo(); });
+
+    document.getElementById('tableInfoConfirm').addEventListener('click', () => {
+      if (!activePCell || !pendingPForma) return;
+      const key = `${activePCell.row}-${activePCell.col}`;
+      piantinaEditing.cells[key] = {
+        forma:      pendingPForma,
+        numerativo: document.getElementById('tableInfoNum').value.trim(),
+        coperti:    parseInt(tableInfoCapEl.value) || 2,
+        note:       document.getElementById('tableInfoNote').value.trim()
+      };
+      pendingPForma = null; changingPShape = false; shapesLit = false; activePCell = null;
+      closeTableInfo();
+      renderShapePanel();
+      renderEditGrid();
+    });
+  })();
+
+  function openTableInfo(existing) {
+    const isEdit = !!(existing && existing.forma && !changingPShape);
+    document.getElementById('tableInfoTitle').textContent = isEdit ? 'Modifica tavolo' : 'Nuovo tavolo';
+    document.getElementById('tableInfoNum').value  = existing ? (existing.numerativo || '') : '';
+    tableInfoCapEl.value                           = existing ? (existing.coperti    || 2)  : 2;
+    document.getElementById('tableInfoNote').value = existing ? (existing.note       || '') : '';
+    tableInfoOv.classList.add('visible');
+  }
+
 })();
 
 // ═══════════════════════════════════
