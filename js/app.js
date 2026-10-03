@@ -2736,6 +2736,8 @@ function renderSaleGrid(grid) {
   rooms.forEach(r => {
     const box = document.createElement('div');
     box.className = 'sala-box';
+    box.dataset.id = r.id;
+    box.style.cursor = 'pointer';
     box.innerHTML = `
       <img src="assets/icons/table-chairs.webp" class="sala-box__icon" alt="">
       <span class="sala-box__name">${escapeHTML(r.name)}</span>
@@ -2749,15 +2751,18 @@ function renderSaleGrid(grid) {
 }
 
 (function initSale() {
-  const createBtn  = document.getElementById('createSalaBtn');
-  const overlay    = document.getElementById('createSalaOverlay');
-  const modalTitle = overlay ? overlay.querySelector('h3') : null;
-  const closeBtn   = document.getElementById('createSalaClose');
-  const cancelBtn  = document.getElementById('createSalaCancel');
-  const saveBtn    = document.getElementById('createSalaSave');
-  const saleGrid   = document.getElementById('saleGrid');
+  const createBtn   = document.getElementById('createSalaBtn');
+  const overlay     = document.getElementById('createSalaOverlay');
+  const modalTitle  = overlay ? overlay.querySelector('h3') : null;
+  const closeBtn    = document.getElementById('createSalaClose');
+  const cancelBtn   = document.getElementById('createSalaCancel');
+  const saveBtn     = document.getElementById('createSalaSave');
+  const saleGrid    = document.getElementById('saleGrid');
+  const saleToolbar = document.getElementById('saleToolbar');
+  const salaDetail  = document.getElementById('salaDetail');
   if (!createBtn) return;
 
+  // ── Create/edit modal fields ──
   const nameInput  = document.getElementById('salaName');
   const capInput   = document.getElementById('salaCap');
   const opInput    = document.getElementById('salaOp');
@@ -2766,8 +2771,30 @@ function renderSaleGrid(grid) {
   const notesSave  = document.getElementById('salaNotesSave');
   const modalBody  = document.getElementById('createSalaBody');
 
-  let editingId = null; // null = create mode, string = edit mode
+  // ── Detail view elements ──
+  const detailBack     = document.getElementById('salaDetailBack');
+  const detailName     = document.getElementById('salaDetailName');
+  const capDisplay     = document.getElementById('salaCapDisplay');
+  const capView        = document.getElementById('salaCapView');
+  const capEditMode    = document.getElementById('salaCapEditMode');
+  const capEditBtn     = document.getElementById('salaCapEditBtn');
+  const capInput2      = document.getElementById('salaCapInput');
+  const capMinus2      = document.getElementById('salaDetailCapMinus');
+  const capPlus2       = document.getElementById('salaDetailCapPlus');
+  const capConfirm     = document.getElementById('salaCapConfirm');
+  const noteText       = document.getElementById('salaDetailNoteText');
+  const noteEditBtn    = document.getElementById('salaDetailNoteEditBtn');
+  const noteTA2        = document.getElementById('salaDetailNoteTA');
+  const noteActions    = document.getElementById('salaDetailNoteActions');
+  const noteSaveBtn    = document.getElementById('salaDetailNoteSave');
+  const noteCancelBtn  = document.getElementById('salaDetailNoteCancel');
 
+  let editingId    = null;
+  let currentSalaId = null;
+
+  // ────────────────────────────────────
+  // Modal helpers
+  // ────────────────────────────────────
   function makeStepper(input, step, min) {
     input.addEventListener('focus', () => input.select());
     input.addEventListener('click', () => input.select());
@@ -2795,19 +2822,18 @@ function renderSaleGrid(grid) {
 
   notesClear.addEventListener('click', () => { noteTA.value = ''; });
   notesSave.addEventListener('click',  () => { noteTA.blur(); });
-
-  nameInput.addEventListener('input', () => {
+  nameInput.addEventListener('input',  () => {
     nameInput.style.fontStyle = nameInput.value ? 'normal' : 'italic';
   });
 
   function openModal(room) {
     editingId = room ? room.id : null;
     if (modalTitle) modalTitle.textContent = room ? 'Modifica sala' : 'Crea una sala';
-    nameInput.value       = room ? room.name      : '';
+    nameInput.value = room ? room.name : '';
     nameInput.style.fontStyle = (room && room.name) ? 'normal' : 'italic';
-    capInput.value        = room ? room.capienza   : '10';
-    opInput.value         = room ? room.operatori  : '1';
-    noteTA.value          = room ? (room.note || '') : '';
+    capInput.value  = room ? room.capienza  : '10';
+    opInput.value   = room ? room.operatori : '1';
+    noteTA.value    = room ? (room.note || '') : '';
     overlay.classList.add('visible');
     nameInput.focus({ preventScroll: true });
     requestAnimationFrame(() => { if (modalBody) modalBody.scrollTop = 0; });
@@ -2843,20 +2869,127 @@ function renderSaleGrid(grid) {
     closeModal();
   });
 
-  // Edit / delete delegation on the grid
+  // ────────────────────────────────────
+  // Detail view — open / close
+  // ────────────────────────────────────
+  function setNoteText(note) {
+    if (note) {
+      noteText.textContent = note;
+      noteText.classList.remove('sala-note-text--empty');
+    } else {
+      noteText.textContent = 'Nessuna nota';
+      noteText.classList.add('sala-note-text--empty');
+    }
+  }
+
+  function showCapView() {
+    capView.style.display     = 'flex';
+    capEditMode.style.display = 'none';
+  }
+  function showCapEdit() {
+    const room = rooms.find(r => r.id === currentSalaId);
+    if (!room) return;
+    capInput2.value = room.capienza;
+    capView.style.display     = 'none';
+    capEditMode.style.display = 'flex';
+    capInput2.focus();
+    capInput2.select();
+  }
+  function confirmCapEdit() {
+    let v = parseInt(capInput2.value, 10);
+    if (isNaN(v) || v < 1) v = 1;
+    const idx = rooms.findIndex(r => r.id === currentSalaId);
+    if (idx !== -1) { rooms[idx].capienza = v; saveSale(); }
+    capDisplay.textContent = v;
+    showCapView();
+  }
+
+  function showNoteView() {
+    noteTA2.style.display     = 'none';
+    noteActions.style.display = 'none';
+    noteText.style.display    = 'block';
+  }
+  function showNoteEdit() {
+    const room = rooms.find(r => r.id === currentSalaId);
+    noteTA2.value = (room && room.note) ? room.note : '';
+    noteText.style.display    = 'none';
+    noteTA2.style.display     = 'block';
+    noteActions.style.display = 'flex';
+    noteTA2.focus();
+  }
+
+  function openSalaDetail(id) {
+    const room = rooms.find(r => r.id === id);
+    if (!room) return;
+    currentSalaId = id;
+    detailName.textContent = room.name;
+    capDisplay.textContent = room.capienza;
+    setNoteText(room.note);
+    showCapView();
+    showNoteView();
+    saleToolbar.style.display = 'none';
+    saleGrid.style.display    = 'none';
+    salaDetail.style.display  = 'block';
+  }
+
+  function closeSalaDetail() {
+    currentSalaId = null;
+    salaDetail.style.display  = 'none';
+    saleGrid.style.display    = '';
+    saleToolbar.style.display = '';
+  }
+
+  detailBack.addEventListener('click', closeSalaDetail);
+
+  // Coperti edit
+  capEditBtn.addEventListener('click', showCapEdit);
+  capConfirm.addEventListener('click', confirmCapEdit);
+  capInput2.addEventListener('input', () => {
+    capInput2.value = capInput2.value.replace(/[^0-9]/g, '');
+  });
+  capInput2.addEventListener('keydown', e => { if (e.key === 'Enter') confirmCapEdit(); });
+  capMinus2.addEventListener('click', () => {
+    let v = parseInt(capInput2.value, 10) || 1;
+    capInput2.value = Math.max(1, v - 5);
+  });
+  capPlus2.addEventListener('click', () => {
+    let v = parseInt(capInput2.value, 10) || 1;
+    capInput2.value = v + 5;
+  });
+
+  // Note edit
+  noteEditBtn.addEventListener('click', showNoteEdit);
+  noteSaveBtn.addEventListener('click', () => {
+    const note = noteTA2.value.trim();
+    const idx = rooms.findIndex(r => r.id === currentSalaId);
+    if (idx !== -1) { rooms[idx].note = note; saveSale(); }
+    setNoteText(note);
+    showNoteView();
+  });
+  noteCancelBtn.addEventListener('click', () => {
+    showNoteView();
+  });
+
+  // ────────────────────────────────────
+  // Grid delegation: edit / delete / open detail
+  // ────────────────────────────────────
   saleGrid.addEventListener('click', e => {
     const editBtn   = e.target.closest('.sala-edit-btn');
     const deleteBtn = e.target.closest('.sala-delete-btn');
     if (editBtn) {
       const room = rooms.find(r => r.id === editBtn.dataset.id);
       if (room) openModal(room);
+      return;
     }
     if (deleteBtn) {
       const id = deleteBtn.dataset.id;
       rooms = rooms.filter(r => r.id !== id);
       saveSale();
       renderSaleGrid(saleGrid);
+      return;
     }
+    const box = e.target.closest('.sala-box');
+    if (box && box.dataset.id) openSalaDetail(box.dataset.id);
   });
 })();
 
