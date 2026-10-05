@@ -2996,62 +2996,144 @@ function renderSaleGrid(grid) {
   // ────────────────────────────────────────────
   // Piantina (floor plan) management
   // ────────────────────────────────────────────
-  const TABLE_SHAPE_SVG = {
-    quadrato:   '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>',
-    rettangolo: '<svg viewBox="0 0 32 22" fill="currentColor"><rect x="1" y="3" width="30" height="16" rx="2"/></svg>',
-    rotondo:    '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>'
+  const PGRID = 40;
+  const CANVAS_W = 700, CANVAS_H = 440;
+  const CANVAS_W_EXP = 980, CANVAS_H_EXP = 600;
+  const TABLE_SZ = {
+    quadrato:   { w: 80,  h: 80  },
+    rettangolo: { w: 120, h: 80  },
+    rotondo:    { w: 80,  h: 80  }
   };
-  const SHAPE_LABEL = { quadrato: 'Quad.', rettangolo: 'Rett.', rotondo: 'Rond.' };
+  const SHAPE_NAME = { quadrato: 'Quadrato', rettangolo: 'Rettangolo', rotondo: 'Rotondo' };
+
+  function tableSVG(forma, label) {
+    const l = escapeHTML(label || '');
+    if (forma === 'rettangolo')
+      return `<svg viewBox="0 0 120 80" width="100%" height="100%"><rect x="5" y="5" width="110" height="70" rx="10" fill="var(--accent)"/><text x="60" y="40" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="18" font-weight="700">${l}</text></svg>`;
+    if (forma === 'rotondo')
+      return `<svg viewBox="0 0 80 80" width="100%" height="100%"><circle cx="40" cy="40" r="35" fill="var(--accent)"/><text x="40" y="40" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="18" font-weight="700">${l}</text></svg>`;
+    return `<svg viewBox="0 0 80 80" width="100%" height="100%"><rect x="5" y="5" width="70" height="70" rx="10" fill="var(--accent)"/><text x="40" y="40" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="18" font-weight="700">${l}</text></svg>`;
+  }
+
+  function fabShapeSVG(forma) {
+    if (forma === 'rettangolo')
+      return '<svg viewBox="0 0 48 32" width="40" height="27" fill="var(--accent)"><rect x="2" y="2" width="44" height="28" rx="5"/></svg>';
+    if (forma === 'rotondo')
+      return '<svg viewBox="0 0 36 36" width="30" height="30" fill="var(--accent)"><circle cx="18" cy="18" r="14"/></svg>';
+    return '<svg viewBox="0 0 36 36" width="30" height="30" fill="var(--accent)"><rect x="2" y="2" width="32" height="32" rx="5"/></svg>';
+  }
 
   let piantinaEditing = null;
-  let activePCell     = null;
-  let shapesLit       = false;
-  let changingPShape  = false;
+  let activePTableId  = null;
   let pendingPForma   = null;
+  let fabOpen         = false;
+  let isExpanded      = false;
   let deletePSrc      = null;
 
-  const creaPiantinaOv  = document.getElementById('creaPiantinaOverlay');
-  const modificaPOv     = document.getElementById('modificaPiantinaOverlay');
-  const tableInfoOv     = document.getElementById('tableInfoOverlay');
-  const cellOptionsOv   = document.getElementById('cellOptionsOverlay');
-  const deletePOv       = document.getElementById('deletePiantinaOverlay');
-  const editGridEl      = document.getElementById('piantinaEditGrid');
-  const shapeIconListEl = document.getElementById('piantinaShapeIconList');
-  const tableInfoCapEl  = document.getElementById('tableInfoCap');
+  const creaPiantinaOv = document.getElementById('creaPiantinaOverlay');
+  const modificaPOv    = document.getElementById('modificaPiantinaOverlay');
+  const tableInfoOv    = document.getElementById('tableInfoOverlay');
+  const cellOptionsOv  = document.getElementById('cellOptionsOverlay');
+  const deletePOv      = document.getElementById('deletePiantinaOverlay');
+  const tableInfoCapEl = document.getElementById('tableInfoCap');
+  const fabBtn         = document.getElementById('piantinaFabBtn');
+  const fabMenu        = document.getElementById('piantinaFabMenu');
+
+  function getRoom() { return rooms.find(r => r.id === currentSalaId); }
+  function canvasSize() { return isExpanded ? { w: CANVAS_W_EXP, h: CANVAS_H_EXP } : { w: CANVAS_W, h: CANVAS_H }; }
+
+  function migrateOldCells(cells) {
+    if (!cells) return [];
+    return Object.entries(cells).map(([key, td], i) => {
+      const [r, c] = key.split('-').map(Number);
+      return { id: 'mig-' + i, forma: td.forma || 'quadrato', numerativo: td.numerativo || '', coperti: td.coperti || 2, note: td.note || '', x: c, y: r };
+    });
+  }
+
+  function makeTableEl(t, editable) {
+    const sz  = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+    const div = document.createElement('div');
+    div.className = 'piantina-table' + (editable ? ' piantina-table--edit' : '');
+    div.dataset.id = t.id;
+    div.style.cssText = `left:${t.x * PGRID}px;top:${t.y * PGRID}px;width:${sz.w}px;height:${sz.h}px`;
+    div.innerHTML =
+      '<div class="piantina-table-shape">' + tableSVG(t.forma, t.numerativo) + '</div>' +
+      '<div class="piantina-table-badge">' +
+        '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
+        '<span>' + (t.coperti || 0) + '</span>' +
+      '</div>';
+    if (!editable) {
+      const tip = document.createElement('div');
+      tip.className = 'piantina-table-tooltip';
+      tip.innerHTML = '<strong>Tavolo ' + escapeHTML(t.numerativo || '—') + '</strong>' +
+        '<div>Coperti: ' + (t.coperti || 0) + '</div>' +
+        (t.note ? '<div>' + escapeHTML(t.note) + '</div>' : '');
+      div.appendChild(tip);
+    }
+    if (editable) {
+      makeDraggable(div, sz);
+      div.addEventListener('click', e => {
+        if (div.dataset.dragged === '1') { div.dataset.dragged = '0'; return; }
+        if (fabOpen) { closeFab(); return; }
+        activePTableId = t.id;
+        cellOptionsOv.classList.add('visible');
+      });
+    }
+    return div;
+  }
+
+  function makeDraggable(el, sz) {
+    let sx, sy, ox, oy, moved;
+    el.addEventListener('mousedown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      moved = false; sx = e.clientX; sy = e.clientY;
+      ox = parseInt(el.style.left) || 0;
+      oy = parseInt(el.style.top)  || 0;
+      el.classList.add('dragging');
+      const canvas = el.parentElement;
+      const cw = parseInt(canvas.style.width)  || CANVAS_W;
+      const ch = parseInt(canvas.style.height) || CANVAS_H;
+      function onMove(e) {
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+        let nx = Math.round((ox + dx) / PGRID) * PGRID;
+        let ny = Math.round((oy + dy) / PGRID) * PGRID;
+        nx = Math.max(0, Math.min(cw - sz.w, nx));
+        ny = Math.max(0, Math.min(ch - sz.h, ny));
+        el.style.left = nx + 'px'; el.style.top = ny + 'px';
+      }
+      function onUp() {
+        el.classList.remove('dragging');
+        if (moved) {
+          el.dataset.dragged = '1';
+          const id = el.dataset.id;
+          const t  = piantinaEditing.tables.find(t => t.id === id);
+          if (t) { t.x = parseInt(el.style.left) / PGRID; t.y = parseInt(el.style.top) / PGRID; }
+        }
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
 
   function renderPiantinaView() {
-    const addBtn   = document.getElementById('salaPiantinaAddBtn');
-    const viewArea = document.getElementById('piantinaViewArea');
-    const viewGrid = document.getElementById('piantinaViewGrid');
-    if (!addBtn || !viewArea || !viewGrid) return;
-    const room = rooms.find(r => r.id === currentSalaId);
+    const addBtn     = document.getElementById('salaPiantinaAddBtn');
+    const viewArea   = document.getElementById('piantinaViewArea');
+    const viewCanvas = document.getElementById('piantinaViewCanvas');
+    if (!addBtn || !viewArea || !viewCanvas) return;
+    const room = getRoom();
     const p    = room && room.piantina;
-    if (p) {
+    if (p && (p.tables || p.cells)) {
       addBtn.disabled = true;
       addBtn.classList.add('disabled');
-      viewGrid.style.gridTemplateColumns = `repeat(${p.cols}, 34px)`;
-      viewGrid.innerHTML = '';
-      for (let r = 0; r < p.rows; r++) {
-        for (let c = 0; c < p.cols; c++) {
-          const key = `${r}-${c}`;
-          const td  = p.cells && p.cells[key];
-          const cell = document.createElement('div');
-          cell.className = 'piantina-cell' + (td ? ' occupied' : '');
-          if (td) {
-            cell.innerHTML =
-              '<div class="piantina-cell-inner">' +
-                '<div class="piantina-table-icon">' + (TABLE_SHAPE_SVG[td.forma] || '') + '</div>' +
-                '<span class="piantina-cell-num">' + escapeHTML(td.numerativo || '') + '</span>' +
-              '</div>' +
-              '<div class="piantina-cell-tooltip">' +
-                '<strong>Tavolo ' + escapeHTML(td.numerativo || '—') + '</strong>' +
-                '<div>Coperti: ' + (td.coperti || 0) + '</div>' +
-                (td.note ? '<div>' + escapeHTML(td.note) + '</div>' : '') +
-              '</div>';
-          }
-          viewGrid.appendChild(cell);
-        }
-      }
+      const tables = p.tables || migrateOldCells(p.cells);
+      viewCanvas.style.width  = CANVAS_W + 'px';
+      viewCanvas.style.height = CANVAS_H + 'px';
+      viewCanvas.innerHTML = '';
+      tables.forEach(t => viewCanvas.appendChild(makeTableEl(t, false)));
       viewArea.style.display = 'block';
     } else {
       addBtn.disabled = false;
@@ -3060,28 +3142,72 @@ function renderSaleGrid(grid) {
     }
   }
 
+  function renderModificaCanvas() {
+    const canvas = document.getElementById('piantinaCanvas');
+    if (!canvas || !piantinaEditing) return;
+    const sz = canvasSize();
+    canvas.style.width  = sz.w + 'px';
+    canvas.style.height = sz.h + 'px';
+    Array.from(canvas.querySelectorAll('.piantina-table')).forEach(el => el.remove());
+    const fab = document.getElementById('piantinaFabContainer');
+    (piantinaEditing.tables || []).forEach(t => canvas.insertBefore(makeTableEl(t, true), fab));
+    const used  = (piantinaEditing.tables || []).reduce((s, t) => s + (t.coperti || 0), 0);
+    const total = piantinaEditing.copertiTotali || 0;
+    const ctr   = document.getElementById('piantinaCopertCounter');
+    if (ctr) ctr.innerHTML =
+      '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
+      ' <span>' + used + ' / ' + total + ' coperti</span>';
+    renderFabMenu();
+  }
+
+  // ── FAB ──
+  function renderFabMenu() {
+    fabMenu.innerHTML = '';
+    if (!fabOpen || !piantinaEditing) return;
+    (piantinaEditing.formeTaboli || []).forEach((shape, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'piantina-fab-item';
+      btn.dataset.shape = shape;
+      btn.style.animationDelay = (i * 0.06) + 's';
+      btn.innerHTML = fabShapeSVG(shape) + '<span class="piantina-fab-item-label">' + (SHAPE_NAME[shape] || shape) + '</span>';
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        pendingPForma = shape;
+        closeFab();
+        const existing = activePTableId ? piantinaEditing.tables.find(t => t.id === activePTableId) : null;
+        openTableInfo(existing);
+      });
+      fabMenu.appendChild(btn);
+    });
+  }
+
+  function openFab()  { fabOpen = true;  fabBtn.classList.add('active');  fabMenu.style.display = 'flex'; renderFabMenu(); }
+  function closeFab() { fabOpen = false; fabBtn.classList.remove('active'); fabMenu.style.display = 'none'; fabMenu.innerHTML = ''; }
+
+  fabBtn.addEventListener('click', e => { e.stopPropagation(); fabOpen ? closeFab() : openFab(); });
+  document.getElementById('piantinaCanvas').addEventListener('click', () => { if (fabOpen) closeFab(); });
+
   // ── Creation popup ──
   (function() {
-    const forma    = document.getElementById('piantinaForma');
-    const numInput = document.getElementById('piantinaNum');
-    const chips    = Array.from(document.querySelectorAll('.piantina-shape-chip'));
+    const forma  = document.getElementById('piantinaForma');
+    const copert = document.getElementById('piantinaCopert');
+    const chips  = Array.from(document.querySelectorAll('.piantina-shape-chip'));
 
     document.getElementById('salaPiantinaAddBtn').addEventListener('click', () => {
       if (document.getElementById('salaPiantinaAddBtn').disabled) return;
-      forma.value = ''; numInput.value = '4';
+      forma.value = ''; copert.value = '30';
       chips.forEach(c => c.classList.remove('active'));
       creaPiantinaOv.classList.add('visible');
     });
     chips.forEach(ch => ch.addEventListener('click', () => ch.classList.toggle('active')));
-    document.getElementById('piantinaNumMinus').addEventListener('click', () => {
-      numInput.value = Math.max(1, (parseInt(numInput.value) || 1) - 1);
+    document.getElementById('piantinaCopertMinus').addEventListener('click', () => {
+      copert.value = Math.max(1, (parseInt(copert.value) || 1) - 1);
     });
-    document.getElementById('piantinaNumPlus').addEventListener('click', () => {
-      numInput.value = (parseInt(numInput.value) || 1) + 1;
+    document.getElementById('piantinaCopertPlus').addEventListener('click', () => {
+      copert.value = (parseInt(copert.value) || 1) + 1;
     });
-    numInput.addEventListener('input', () => {
-      numInput.value = numInput.value.replace(/[^0-9]/g, '');
-    });
+    copert.addEventListener('input', () => { copert.value = copert.value.replace(/[^0-9]/g, ''); });
     function closeCreaPiantina() { creaPiantinaOv.classList.remove('visible'); }
     document.getElementById('creaPiantinaClose').addEventListener('click', closeCreaPiantina);
     document.getElementById('creaPiantinaCancel').addEventListener('click', closeCreaPiantina);
@@ -3092,11 +3218,10 @@ function renderSaleGrid(grid) {
       if (!f) { forma.focus(); return; }
       const sel = chips.filter(c => c.classList.contains('active')).map(c => c.dataset.shape);
       if (!sel.length) return;
-      const n    = parseInt(numInput.value) || 4;
-      const size = f === 'quadrata' ? { rows: 6, cols: 6 } : { rows: 5, cols: 9 };
-      const idx  = rooms.findIndex(r => r.id === currentSalaId);
+      const ct  = parseInt(copert.value) || 30;
+      const idx = rooms.findIndex(r => r.id === currentSalaId);
       if (idx === -1) return;
-      rooms[idx].piantina = { forma: f, formeTaboli: sel, numTavoli: n, ...size, cells: {} };
+      rooms[idx].piantina = { forma: f, formeTaboli: sel, copertiTotali: ct, tables: [] };
       saveSale();
       closeCreaPiantina();
       renderPiantinaView();
@@ -3106,11 +3231,10 @@ function renderSaleGrid(grid) {
   // ── View buttons ──
   document.getElementById('piantinaViewModificaBtn').addEventListener('click', openModificaPiantina);
   document.getElementById('piantinaViewEliminaBtn').addEventListener('click', () => {
-    deletePSrc = 'view';
-    deletePOv.classList.add('visible');
+    deletePSrc = 'view'; deletePOv.classList.add('visible');
   });
 
-  // ── Delete piantina confirm ──
+  // ── Delete piantina ──
   (function() {
     function closeDeleteP() { deletePOv.classList.remove('visible'); }
     document.getElementById('deletePiantinaClose').addEventListener('click', closeDeleteP);
@@ -3125,123 +3249,72 @@ function renderSaleGrid(grid) {
     });
   })();
 
-  // ── Modifica helpers ──
-  function renderShapePanel() {
-    shapeIconListEl.innerHTML = '';
-    if (!piantinaEditing) return;
-    piantinaEditing.formeTaboli.forEach(shape => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'piantina-shape-icon-btn' + (shapesLit ? ' shapes-lit' : '');
-      btn.dataset.shape = shape;
-      btn.innerHTML = (TABLE_SHAPE_SVG[shape] || '') + '<span class="shape-label">' + (SHAPE_LABEL[shape] || shape) + '</span>';
-      btn.addEventListener('click', () => {
-        if (!shapesLit) return;
-        pendingPForma = shape;
-        const key = `${activePCell.row}-${activePCell.col}`;
-        openTableInfo(changingPShape ? (piantinaEditing.cells[key] || {}) : null);
-      });
-      shapeIconListEl.appendChild(btn);
-    });
-  }
-
-  function renderEditGrid() {
-    if (!piantinaEditing) return;
-    editGridEl.style.gridTemplateColumns = `repeat(${piantinaEditing.cols}, 38px)`;
-    editGridEl.innerHTML = '';
-    for (let r = 0; r < piantinaEditing.rows; r++) {
-      for (let c = 0; c < piantinaEditing.cols; c++) {
-        const key = `${r}-${c}`;
-        const td  = piantinaEditing.cells && piantinaEditing.cells[key];
-        const sel = activePCell && activePCell.row === r && activePCell.col === c;
-        const cell = document.createElement('div');
-        cell.className = 'piantina-cell-edit ' + (td ? 'occupied' : 'empty') + (sel ? ' selected' : '');
-        if (td) {
-          cell.innerHTML =
-            '<div class="piantina-cell-edit-inner">' +
-              (TABLE_SHAPE_SVG[td.forma] || '') +
-              '<span class="piantina-cell-edit-num">' + escapeHTML(td.numerativo || '') + '</span>' +
-            '</div>';
-        }
-        cell.addEventListener('click', () => {
-          if (td) {
-            activePCell = { row: r, col: c };
-            cellOptionsOv.classList.add('visible');
-          } else {
-            activePCell    = { row: r, col: c };
-            shapesLit      = true;
-            changingPShape = false;
-            renderShapePanel();
-            renderEditGrid();
-          }
-        });
-        editGridEl.appendChild(cell);
-      }
-    }
-  }
-
+  // ── Modifica popup ──
   function openModificaPiantina() {
-    const room = rooms.find(r => r.id === currentSalaId);
+    const room = getRoom();
     if (!room || !room.piantina) return;
     piantinaEditing = JSON.parse(JSON.stringify(room.piantina));
-    activePCell = null; shapesLit = false; changingPShape = false; pendingPForma = null;
-    renderShapePanel();
-    renderEditGrid();
+    if (!piantinaEditing.tables) {
+      piantinaEditing.tables = piantinaEditing.cells ? migrateOldCells(piantinaEditing.cells) : [];
+      delete piantinaEditing.cells;
+    }
+    activePTableId = null; pendingPForma = null; fabOpen = false; isExpanded = false;
+    document.querySelector('.modal--piantina-modifica').classList.remove('expanded');
+    document.getElementById('piantinaExpandBtn').innerHTML =
+      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+    renderModificaCanvas();
     modificaPOv.classList.add('visible');
   }
 
-  // ── Modifica popup buttons ──
+  document.getElementById('piantinaExpandBtn').addEventListener('click', () => {
+    isExpanded = !isExpanded;
+    document.querySelector('.modal--piantina-modifica').classList.toggle('expanded', isExpanded);
+    document.getElementById('piantinaExpandBtn').innerHTML = isExpanded
+      ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v5H3M21 8h-5V3M16 21v-5h5M3 16h5v5"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+    renderModificaCanvas();
+  });
+
   (function() {
-    function closeModifica() { modificaPOv.classList.remove('visible'); }
+    function closeModifica() { modificaPOv.classList.remove('visible'); closeFab(); }
     document.getElementById('modificaPiantinaClose').addEventListener('click', closeModifica);
     document.getElementById('modificaPiantinaCancel').addEventListener('click', closeModifica);
     modificaPOv.addEventListener('click', e => { if (e.target === modificaPOv) closeModifica(); });
     document.getElementById('modificaPiantinaSalva').addEventListener('click', () => {
       const idx = rooms.findIndex(r => r.id === currentSalaId);
-      if (idx !== -1) {
-        rooms[idx].piantina = JSON.parse(JSON.stringify(piantinaEditing));
-        saveSale();
-      }
+      if (idx !== -1) { rooms[idx].piantina = JSON.parse(JSON.stringify(piantinaEditing)); saveSale(); }
       closeModifica();
       renderPiantinaView();
     });
     document.getElementById('modificaPiantinaElimina').addEventListener('click', () => {
-      deletePSrc = 'modifica';
-      deletePOv.classList.add('visible');
+      deletePSrc = 'modifica'; deletePOv.classList.add('visible');
     });
   })();
 
-  // ── Cell options ──
+  // ── Table options ──
   (function() {
     function closeCellOpts() { cellOptionsOv.classList.remove('visible'); }
     document.getElementById('cellOptionsClose').addEventListener('click', closeCellOpts);
     cellOptionsOv.addEventListener('click', e => { if (e.target === cellOptionsOv) closeCellOpts(); });
-
     document.getElementById('cellOptEditInfo').addEventListener('click', () => {
-      const key = `${activePCell.row}-${activePCell.col}`;
-      const existing = piantinaEditing.cells[key];
-      pendingPForma  = existing && existing.forma;
-      changingPShape = false;
+      const t = piantinaEditing.tables.find(t => t.id === activePTableId);
+      pendingPForma = t ? t.forma : null;
       closeCellOpts();
-      openTableInfo(existing);
+      openTableInfo(t || null);
     });
     document.getElementById('cellOptDeleteTable').addEventListener('click', () => {
-      const key = `${activePCell.row}-${activePCell.col}`;
-      delete piantinaEditing.cells[key];
-      activePCell = null; shapesLit = false;
+      piantinaEditing.tables = piantinaEditing.tables.filter(t => t.id !== activePTableId);
+      activePTableId = null;
       closeCellOpts();
-      renderShapePanel();
-      renderEditGrid();
+      renderModificaCanvas();
     });
     document.getElementById('cellOptChangeShape').addEventListener('click', () => {
-      changingPShape = true; shapesLit = true;
       closeCellOpts();
-      renderShapePanel();
-      renderEditGrid();
+      openFab();
     });
   })();
 
-  // ── Table info popup ──
+  // ── Table info ──
   (function() {
     document.getElementById('tableInfoCapMinus').addEventListener('click', () => {
       tableInfoCapEl.value = Math.max(1, (parseInt(tableInfoCapEl.value) || 2) - 1);
@@ -3249,33 +3322,49 @@ function renderSaleGrid(grid) {
     document.getElementById('tableInfoCapPlus').addEventListener('click', () => {
       tableInfoCapEl.value = (parseInt(tableInfoCapEl.value) || 2) + 1;
     });
-    tableInfoCapEl.addEventListener('input', () => {
-      tableInfoCapEl.value = tableInfoCapEl.value.replace(/[^0-9]/g, '');
-    });
+    tableInfoCapEl.addEventListener('input', () => { tableInfoCapEl.value = tableInfoCapEl.value.replace(/[^0-9]/g, ''); });
     function closeTableInfo() { tableInfoOv.classList.remove('visible'); }
     document.getElementById('tableInfoClose').addEventListener('click', closeTableInfo);
     document.getElementById('tableInfoCancel').addEventListener('click', closeTableInfo);
     tableInfoOv.addEventListener('click', e => { if (e.target === tableInfoOv) closeTableInfo(); });
 
     document.getElementById('tableInfoConfirm').addEventListener('click', () => {
-      if (!activePCell || !pendingPForma) return;
-      const key = `${activePCell.row}-${activePCell.col}`;
-      piantinaEditing.cells[key] = {
-        forma:      pendingPForma,
-        numerativo: document.getElementById('tableInfoNum').value.trim(),
-        coperti:    parseInt(tableInfoCapEl.value) || 2,
-        note:       document.getElementById('tableInfoNote').value.trim()
-      };
-      pendingPForma = null; changingPShape = false; shapesLit = false; activePCell = null;
+      if (!pendingPForma) return;
+      const numerativo = document.getElementById('tableInfoNum').value.trim();
+      const coperti    = parseInt(tableInfoCapEl.value) || 2;
+      const note       = document.getElementById('tableInfoNote').value.trim();
+      if (activePTableId) {
+        const t = piantinaEditing.tables.find(t => t.id === activePTableId);
+        if (t) { t.forma = pendingPForma; t.numerativo = numerativo; t.coperti = coperti; t.note = note; }
+      } else {
+        const pos = findFreePos(pendingPForma);
+        piantinaEditing.tables.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), forma: pendingPForma, numerativo, coperti, note, x: pos.x, y: pos.y });
+      }
+      pendingPForma = null; activePTableId = null;
       closeTableInfo();
-      renderShapePanel();
-      renderEditGrid();
+      renderModificaCanvas();
     });
   })();
 
+  function findFreePos(forma) {
+    const sz  = TABLE_SZ[forma] || TABLE_SZ.quadrato;
+    const csz = canvasSize();
+    const occ = (piantinaEditing.tables || []).map(t => {
+      const s = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+      return { x: t.x * PGRID, y: t.y * PGRID, w: s.w, h: s.h };
+    });
+    for (let gy = 0; gy * PGRID + sz.h <= csz.h; gy++) {
+      for (let gx = 0; gx * PGRID + sz.w <= csz.w; gx++) {
+        const nx = gx * PGRID, ny = gy * PGRID;
+        if (!occ.some(o => nx < o.x + o.w && nx + sz.w > o.x && ny < o.y + o.h && ny + sz.h > o.y))
+          return { x: gx, y: gy };
+      }
+    }
+    return { x: 0, y: 0 };
+  }
+
   function openTableInfo(existing) {
-    const isEdit = !!(existing && existing.forma && !changingPShape);
-    document.getElementById('tableInfoTitle').textContent = isEdit ? 'Modifica tavolo' : 'Nuovo tavolo';
+    document.getElementById('tableInfoTitle').textContent = existing ? 'Modifica tavolo' : 'Nuovo tavolo';
     document.getElementById('tableInfoNum').value  = existing ? (existing.numerativo || '') : '';
     tableInfoCapEl.value                           = existing ? (existing.coperti    || 2)  : 2;
     document.getElementById('tableInfoNote').value = existing ? (existing.note       || '') : '';

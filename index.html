@@ -462,7 +462,9 @@
 
           <!-- Piantina view area (rendered by JS when piantina exists) -->
           <div id="piantinaViewArea" style="display:none; margin-top:12px;">
-            <div class="piantina-view-grid" id="piantinaViewGrid"></div>
+            <div class="piantina-view-scroll">
+              <div class="piantina-view-canvas" id="piantinaViewCanvas"></div>
+            </div>
             <div class="piantina-view-actions">
               <button class="btn btn--secondary" id="piantinaViewModificaBtn">Modifica</button>
               <button class="btn btn--danger" id="piantinaViewEliminaBtn">Elimina</button>
@@ -872,11 +874,11 @@
             </div>
           </div>
           <div class="res-box" style="flex:0 0 auto;">
-            <span class="res-box-label">Numero di tavoli</span>
+            <span class="res-box-label">Coperti disponibili</span>
             <div class="res-pax-control">
-              <button type="button" class="res-pax-btn" id="piantinaNumMinus">−</button>
-              <input type="text" id="piantinaNum" class="res-pax-input" value="4" inputmode="numeric">
-              <button type="button" class="res-pax-btn" id="piantinaNumPlus">+</button>
+              <button type="button" class="res-pax-btn" id="piantinaCopertMinus">−</button>
+              <input type="text" id="piantinaCopert" class="res-pax-input" value="30" inputmode="numeric">
+              <button type="button" class="res-pax-btn" id="piantinaCopertPlus">+</button>
             </div>
           </div>
         </div>
@@ -893,17 +895,30 @@
     <div class="modal modal--piantina-modifica">
       <div class="modal-header">
         <h3>Modifica della piantina</h3>
-        <button class="modal-close" id="modificaPiantinaClose">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div class="modal-header-actions">
+          <button class="piantina-expand-btn" id="piantinaExpandBtn" title="Espandi canvas">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          </button>
+          <button class="modal-close" id="modificaPiantinaClose">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
       </div>
       <div class="modal-body piantina-modifica-body">
-        <div class="piantina-shapes-panel" id="piantinaShapesPanel">
-          <span class="piantina-shapes-title">Scegli la forma del tavolo</span>
-          <div class="piantina-shape-icon-list" id="piantinaShapeIconList"></div>
+        <div class="piantina-canvas-topbar">
+          <span id="piantinaCopertCounter" class="piantina-copert-counter"></span>
         </div>
-        <div class="piantina-edit-scroll" id="piantinaEditScroll">
-          <div class="piantina-edit-grid" id="piantinaEditGrid"></div>
+        <div class="piantina-canvas-scroll">
+          <div class="piantina-canvas" id="piantinaCanvas">
+            <!-- Tables rendered by JS -->
+            <div class="piantina-fab-container" id="piantinaFabContainer">
+              <div class="piantina-fab-menu" id="piantinaFabMenu" style="display:none;"></div>
+              <button type="button" class="piantina-fab-btn" id="piantinaFabBtn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Aggiungi
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer piantina-modifica-footer">
