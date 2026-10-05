@@ -2996,25 +2996,23 @@ function renderSaleGrid(grid) {
   // ────────────────────────────────────────────
   // Piantina (floor plan) management
   // ────────────────────────────────────────────
-  const PGRID = 28;                              // snap unit px
-  const VIEW_W = 640, VIEW_H = 300;             // view-canvas (sala detail)
-  const MODAL_W = 860, MODAL_H = 500;           // modifica modal canvas
-  const MODAL_W_EXP = 1020, MODAL_H_EXP = 620; // expanded modal canvas
+  const PGRID = 28;
+  const VIEW_MIN_W = 280, VIEW_MIN_H = 160;
+  const MODAL_W = 860, MODAL_H = 500;
+  const MODAL_W_EXP = 1020, MODAL_H_EXP = 620;
   const TABLE_SZ = {
     quadrato:   { w: 56, h: 56 },
     rettangolo: { w: 84, h: 56 },
     rotondo:    { w: 56, h: 56 }
   };
   const SHAPE_NAME = { quadrato: 'Quadrato', rettangolo: 'Rettangolo', rotondo: 'Rotondo' };
+  const ALL_SHAPES  = ['quadrato', 'rettangolo', 'rotondo'];
 
   function tableSVG(forma, label, sz) {
     const l = escapeHTML(label || '');
     const { w, h } = sz || TABLE_SZ[forma] || TABLE_SZ.quadrato;
     const fs = Math.max(11, Math.round(Math.min(w, h) * 0.26));
-    const fill = 'rgba(96,165,250,0.48)';
-    const tf   = '#1e3a5f';
-    if (forma === 'rettangolo')
-      return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><rect x="4" y="4" width="${w-8}" height="${h-8}" rx="8" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
+    const fill = 'rgba(96,165,250,0.48)', tf = '#1e3a5f';
     if (forma === 'rotondo')
       return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><circle cx="${w/2}" cy="${h/2}" r="${Math.min(w,h)/2-4}" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
     return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><rect x="4" y="4" width="${w-8}" height="${h-8}" rx="8" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
@@ -3022,49 +3020,64 @@ function renderSaleGrid(grid) {
 
   function fabShapeSVG(forma) {
     const fill = 'rgba(96,165,250,0.7)';
-    if (forma === 'rettangolo')
-      return `<svg viewBox="0 0 48 32" width="40" height="27"><rect x="2" y="2" width="44" height="28" rx="5" fill="${fill}"/></svg>`;
-    if (forma === 'rotondo')
-      return `<svg viewBox="0 0 36 36" width="30" height="30"><circle cx="18" cy="18" r="14" fill="${fill}"/></svg>`;
+    if (forma === 'rettangolo') return `<svg viewBox="0 0 48 32" width="40" height="27"><rect x="2" y="2" width="44" height="28" rx="5" fill="${fill}"/></svg>`;
+    if (forma === 'rotondo')    return `<svg viewBox="0 0 36 36" width="30" height="30"><circle cx="18" cy="18" r="14" fill="${fill}"/></svg>`;
     return `<svg viewBox="0 0 36 36" width="30" height="30"><rect x="2" y="2" width="32" height="32" rx="5" fill="${fill}"/></svg>`;
   }
 
+  function mergeSVG(active) {
+    const c = active ? '#3b82f6' : '#9ca3af';
+    return `<svg viewBox="0 0 18 18" width="14" height="14"><circle cx="6" cy="9" r="4" fill="none" stroke="${c}" stroke-width="1.8"/><circle cx="12" cy="9" r="4" fill="none" stroke="${c}" stroke-width="1.8"/></svg>`;
+  }
+
   // ── State ──
-  let piantinaEditing = null; // used by modifica modal
-  let editingMode     = 'view'; // 'view' | 'modal'
-  let activePTableId  = null;
-  let pendingPForma   = null;
-  let viewFabOpen     = false;
-  let fabOpen         = false;
-  let isExpanded      = false;
-  let deletePSrc      = null;
+  let piantinaEditing    = null;
+  let editingMode        = 'view';
+  let activePTableId     = null;
+  let pendingPForma      = null;
+  let pendingChangeForma = null;
+  let viewFabOpen        = false;
+  let fabOpen            = false;
+  let isExpanded         = false;
+  let deletePSrc         = null;
+  let activeMergePopover = null;
 
   const creaPiantinaOv = document.getElementById('creaPiantinaOverlay');
   const modificaPOv    = document.getElementById('modificaPiantinaOverlay');
   const tableInfoOv    = document.getElementById('tableInfoOverlay');
   const cellOptionsOv  = document.getElementById('cellOptionsOverlay');
   const deletePOv      = document.getElementById('deletePiantinaOverlay');
+  const changeShapeOv  = document.getElementById('changeShapeOverlay');
   const tableInfoCapEl = document.getElementById('tableInfoCap');
   const fabBtn         = document.getElementById('piantinaFabBtn');
   const fabMenu        = document.getElementById('piantinaFabMenu');
   const aggiungiBtn    = document.getElementById('piantinaAggiungiBtn');
   const aggiungiMen    = document.getElementById('piantinaAggiungiMen');
 
-  function getRoom() { return rooms.find(r => r.id === currentSalaId); }
+  function getRoom()         { return rooms.find(r => r.id === currentSalaId); }
   function modalCanvasSize() { return isExpanded ? { w: MODAL_W_EXP, h: MODAL_H_EXP } : { w: MODAL_W, h: MODAL_H }; }
 
-  // Returns the piantina object currently being edited
+  function viewCanvasSize(tables) {
+    if (!tables || !tables.length) return { w: VIEW_MIN_W, h: VIEW_MIN_H };
+    let maxR = 0, maxB = 0;
+    tables.forEach(t => {
+      const sz = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+      maxR = Math.max(maxR, t.x * PGRID + sz.w);
+      maxB = Math.max(maxB, t.y * PGRID + sz.h);
+    });
+    const PAD = 60;
+    return {
+      w: Math.max(VIEW_MIN_W, Math.ceil((maxR + PAD) / PGRID) * PGRID),
+      h: Math.max(VIEW_MIN_H, Math.ceil((maxB + PAD) / PGRID) * PGRID)
+    };
+  }
+
   function getEditPiantina() {
     return editingMode === 'view' ? (getRoom() && getRoom().piantina) : piantinaEditing;
   }
-  // Persists and re-renders after an edit
   function afterEdit() {
-    if (editingMode === 'view') {
-      saveSale();
-      renderPiantinaView();
-    } else {
-      renderModificaCanvas();
-    }
+    if (editingMode === 'view') { saveSale(); renderPiantinaView(); }
+    else renderModificaCanvas();
   }
 
   function migrateOldCells(cells) {
@@ -3076,7 +3089,7 @@ function renderSaleGrid(grid) {
   }
 
   // ── Build a table DOM element ──
-  function makeTableEl(t, cw, ch) {
+  function makeTableEl(t) {
     const sz  = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
     const div = document.createElement('div');
     div.className = 'piantina-table piantina-table--edit';
@@ -3088,7 +3101,6 @@ function renderSaleGrid(grid) {
         '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
         '<span>' + (t.coperti || 0) + '</span>' +
       '</div>';
-    // Hover tooltip (always present)
     const tip = document.createElement('div');
     tip.className = 'piantina-table-tooltip';
     tip.innerHTML =
@@ -3096,9 +3108,29 @@ function renderSaleGrid(grid) {
       'Coperti: ' + (t.coperti || 0) +
       (t.note ? '<br>' + escapeHTML(t.note) : '');
     div.appendChild(tip);
-    // Drag
-    makeDraggable(div, sz, cw, ch, t.id);
-    // Click
+    // Keep tooltip within canvas bounds
+    div.addEventListener('mouseenter', () => {
+      const canvas = div.parentElement;
+      if (!canvas) return;
+      const cw   = parseInt(canvas.style.width)  || VIEW_MIN_W;
+      const ch   = parseInt(canvas.style.height) || VIEW_MIN_H;
+      const tx   = parseInt(div.style.left) || 0;
+      const ty   = parseInt(div.style.top)  || 0;
+      const tipW = 130, tipH = 60;
+      let lc = sz.w / 2;
+      if (tx + lc - tipW / 2 < 6)          lc = tipW / 2 - tx + 6;
+      else if (tx + lc + tipW / 2 > cw - 6) lc = cw - tx - tipW / 2 - 6;
+      tip.style.left      = lc + 'px';
+      tip.style.transform = 'translateX(-50%)';
+      if (ty >= tipH + 16) {
+        tip.style.bottom = (sz.h + 8) + 'px';
+        tip.style.top    = 'auto';
+      } else {
+        tip.style.top    = (sz.h + 8) + 'px';
+        tip.style.bottom = 'auto';
+      }
+    });
+    makeDraggable(div, sz, t.id);
     div.addEventListener('click', e => {
       if (div.dataset.dragged === '1') { div.dataset.dragged = '0'; return; }
       if (viewFabOpen) { closeViewFab(); return; }
@@ -3109,7 +3141,7 @@ function renderSaleGrid(grid) {
     return div;
   }
 
-  function makeDraggable(el, sz, cw, ch, tableId) {
+  function makeDraggable(el, sz, tableId) {
     let sx, sy, ox, oy, moved;
     el.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
@@ -3119,12 +3151,24 @@ function renderSaleGrid(grid) {
       oy = parseInt(el.style.top)  || 0;
       el.classList.add('dragging');
       function onMove(e) {
+        const canvas = el.parentElement;
+        const cw = canvas ? (parseInt(canvas.style.width)  || VIEW_MIN_W) : VIEW_MIN_W;
+        const ch = canvas ? (parseInt(canvas.style.height) || VIEW_MIN_H) : VIEW_MIN_H;
         const dx = e.clientX - sx, dy = e.clientY - sy;
         if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
         let nx = Math.round((ox + dx) / PGRID) * PGRID;
         let ny = Math.round((oy + dy) / PGRID) * PGRID;
         nx = Math.max(0, Math.min(cw - sz.w, nx));
         ny = Math.max(0, Math.min(ch - sz.h, ny));
+        const p = getEditPiantina();
+        if (p) {
+          const blocked = p.tables.filter(t => t.id !== tableId).some(t => {
+            const ts = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+            const tx = t.x * PGRID, ty = t.y * PGRID;
+            return nx < tx + ts.w && nx + sz.w > tx && ny < ty + ts.h && ny + sz.h > ty;
+          });
+          if (blocked) return;
+        }
         el.style.left = nx + 'px'; el.style.top = ny + 'px';
       }
       function onUp() {
@@ -3137,7 +3181,8 @@ function renderSaleGrid(grid) {
           if (p) {
             const t = p.tables.find(t => t.id === tableId);
             if (t) { t.x = newX; t.y = newY; }
-            if (editingMode === 'view') saveSale();
+            if (editingMode === 'view') { saveSale(); renderPiantinaView(); }
+            else renderModificaCanvas();
           }
         }
         document.removeEventListener('mousemove', onMove);
@@ -3148,56 +3193,127 @@ function renderSaleGrid(grid) {
     });
   }
 
-  // ── Render view canvas (sala detail, direct edit) ──
+  // ── Merge buttons between adjacent same-shape tables ──
+  function renderMergeButtons(canvas, tables, p) {
+    canvas.querySelectorAll('.piantina-merge-btn').forEach(el => el.remove());
+    if (!tables || tables.length < 2) return;
+    const merges = p.merges || [];
+    for (let i = 0; i < tables.length; i++) {
+      for (let j = i + 1; j < tables.length; j++) {
+        const t1 = tables[i], t2 = tables[j];
+        if (t1.forma !== t2.forma) continue;
+        const s1 = TABLE_SZ[t1.forma] || TABLE_SZ.quadrato;
+        const s2 = TABLE_SZ[t2.forma] || TABLE_SZ.quadrato;
+        const r1 = { x: t1.x * PGRID, y: t1.y * PGRID, w: s1.w, h: s1.h };
+        const r2 = { x: t2.x * PGRID, y: t2.y * PGRID, w: s2.w, h: s2.h };
+        const gapX = Math.max(0, Math.max(r1.x - (r2.x + r2.w), r2.x - (r1.x + r1.w)));
+        const gapY = Math.max(0, Math.max(r1.y - (r2.y + r2.h), r2.y - (r1.y + r1.h)));
+        if (gapX > PGRID || gapY > PGRID || (gapX > 0 && gapY > 0)) continue;
+        const cx = (r1.x + r1.w / 2 + r2.x + r2.w / 2) / 2;
+        const cy = (r1.y + r1.h / 2 + r2.y + r2.h / 2) / 2;
+        const mergeKey = [t1.id, t2.id].sort().join(':');
+        const existing = merges.find(m => [...m.tableIds].sort().join(':') === mergeKey);
+        const isActive = existing ? existing.active : false;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'piantina-merge-btn' + (isActive ? ' active' : '');
+        btn.style.left = cx + 'px';
+        btn.style.top  = cy + 'px';
+        btn.innerHTML  = mergeSVG(isActive);
+        btn.dataset.t1 = t1.id; btn.dataset.t2 = t2.id;
+        btn.addEventListener('click', e => { e.stopPropagation(); openMergePopover(btn, t1.id, t2.id, p); });
+        canvas.appendChild(btn);
+      }
+    }
+  }
+
+  function openMergePopover(btn, t1Id, t2Id, p) {
+    closeMergePopover();
+    const canvas = btn.parentElement;
+    if (!canvas) return;
+    const cw = parseInt(canvas.style.width) || VIEW_MIN_W;
+    const mergeKey = [t1Id, t2Id].sort().join(':');
+    const existing = (p.merges || []).find(m => [...m.tableIds].sort().join(':') === mergeKey);
+    const isActive = existing ? existing.active : false;
+    const pop = document.createElement('div');
+    pop.className = 'piantina-merge-popover';
+    const btnX = parseFloat(btn.style.left), btnY = parseFloat(btn.style.top);
+    const popW = 158;
+    let popLeft = btnX - popW / 2;
+    if (popLeft < 6)              popLeft = 6;
+    if (popLeft + popW > cw - 6)  popLeft = cw - popW - 6;
+    pop.style.left = popLeft + 'px';
+    pop.style.top  = (btnY - 50) + 'px';
+    const sid = 'ms-' + Date.now();
+    pop.innerHTML =
+      `<label class="merge-toggle" for="${sid}"><input type="checkbox" id="${sid}"${isActive ? ' checked' : ''}><span class="merge-toggle-track"></span></label>` +
+      `<span class="merge-toggle-label${isActive ? ' active' : ''}">${isActive ? 'Uniti' : 'Unisci tavoli'}</span>`;
+    pop.querySelector('input').addEventListener('change', function() {
+      const na = this.checked;
+      if (!p.merges) p.merges = [];
+      let m = p.merges.find(m => [...m.tableIds].sort().join(':') === mergeKey);
+      if (m) m.active = na; else p.merges.push({ id: Date.now().toString(36), tableIds: [t1Id, t2Id], active: na });
+      const lbl = pop.querySelector('.merge-toggle-label');
+      lbl.textContent = na ? 'Uniti' : 'Unisci tavoli';
+      lbl.className   = 'merge-toggle-label' + (na ? ' active' : '');
+      btn.className   = 'piantina-merge-btn' + (na ? ' active' : '');
+      btn.innerHTML   = mergeSVG(na);
+      if (editingMode === 'view') saveSale();
+    });
+    canvas.appendChild(pop);
+    activeMergePopover = pop;
+    setTimeout(() => document.addEventListener('click', closeMergePopoverOnce), 10);
+  }
+  function closeMergePopoverOnce() { closeMergePopover(); document.removeEventListener('click', closeMergePopoverOnce); }
+  function closeMergePopover() { if (activeMergePopover) { activeMergePopover.remove(); activeMergePopover = null; } }
+
+  // ── Render view canvas ──
   function renderPiantinaView() {
     editingMode = 'view';
     const addBtn     = document.getElementById('salaPiantinaAddBtn');
     const viewArea   = document.getElementById('piantinaViewArea');
     const viewCanvas = document.getElementById('piantinaViewCanvas');
     if (!addBtn || !viewArea || !viewCanvas) return;
-    const room = getRoom();
-    const p    = room && room.piantina;
+    const room = getRoom(), p = room && room.piantina;
     if (p) {
-      addBtn.disabled = true;
-      addBtn.classList.add('disabled');
-      if (!p.tables) {
-        p.tables = p.cells ? migrateOldCells(p.cells) : [];
-        delete p.cells;
-      }
-      viewCanvas.style.width  = VIEW_W + 'px';
-      viewCanvas.style.height = VIEW_H + 'px';
+      addBtn.disabled = true; addBtn.classList.add('disabled');
+      if (!p.tables) { p.tables = p.cells ? migrateOldCells(p.cells) : []; delete p.cells; }
+      if (!p.merges) p.merges = [];
+      const { w, h } = viewCanvasSize(p.tables);
+      viewCanvas.style.width  = w + 'px';
+      viewCanvas.style.height = h + 'px';
       viewCanvas.innerHTML = '';
-      p.tables.forEach(t => viewCanvas.appendChild(makeTableEl(t, VIEW_W, VIEW_H)));
-      // Coperti counter
+      p.tables.forEach(t => viewCanvas.appendChild(makeTableEl(t)));
+      renderMergeButtons(viewCanvas, p.tables, p);
       const used  = p.tables.reduce((s, t) => s + (t.coperti || 0), 0);
       const total = p.copertiTotali || 0;
-      const ctr   = document.getElementById('piantinaViewCounter');
-      if (ctr) ctr.innerHTML =
-        '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
-        ' <span>' + used + ' / ' + total + ' coperti</span>';
+      const info  = document.createElement('div');
+      info.className = 'piantina-canvas-info';
+      info.innerHTML =
+        '<div class="piantina-canvas-info-chip">' +
+          '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
+          used + ' / ' + total + ' coperti</div>' +
+        '<div class="piantina-canvas-info-chip">' +
+          '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/></svg>' +
+          p.tables.length + (p.tables.length === 1 ? ' tavolo' : ' tavoli') + '</div>';
+      viewCanvas.appendChild(info);
       viewArea.style.display = 'block';
     } else {
-      addBtn.disabled = false;
-      addBtn.classList.remove('disabled');
+      addBtn.disabled = false; addBtn.classList.remove('disabled');
       viewArea.style.display = 'none';
     }
   }
 
-  // ── View FAB (Aggiungi tavolo) ──
+  // ── View FAB ──
   function renderViewFabMenu() {
     aggiungiMen.innerHTML = '';
-    const p = getRoom() && getRoom().piantina;
-    if (!p) return;
-    (p.formeTaboli || []).forEach((shape, i) => {
+    ALL_SHAPES.forEach((shape, i) => {
       const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'piantina-fab-item';
+      btn.type = 'button'; btn.className = 'piantina-fab-item';
       btn.style.animationDelay = (i * 0.06) + 's';
-      btn.innerHTML = fabShapeSVG(shape) + '<span class="piantina-fab-item-label">' + (SHAPE_NAME[shape] || shape) + '</span>';
+      btn.innerHTML = fabShapeSVG(shape) + '<span class="piantina-fab-item-label">' + SHAPE_NAME[shape] + '</span>';
       btn.addEventListener('click', e => {
-        e.stopPropagation();
-        pendingPForma = shape;
-        closeViewFab();
+        e.stopPropagation(); pendingPForma = shape; closeViewFab();
         const p2 = getEditPiantina();
         const existing = activePTableId && p2 ? p2.tables.find(t => t.id === activePTableId) : null;
         openTableInfo(existing);
@@ -3209,15 +3325,10 @@ function renderSaleGrid(grid) {
   function closeViewFab() { viewFabOpen = false; aggiungiBtn.classList.remove('active'); aggiungiMen.style.display = 'none'; aggiungiMen.innerHTML = ''; }
 
   aggiungiBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    editingMode = 'view';
-    activePTableId = null; // new table, not changing shape
+    e.stopPropagation(); editingMode = 'view'; activePTableId = null;
     viewFabOpen ? closeViewFab() : openViewFab();
   });
-  document.addEventListener('click', () => {
-    if (viewFabOpen) closeViewFab();
-    if (fabOpen)     closeFab();
-  });
+  document.addEventListener('click', () => { if (viewFabOpen) closeViewFab(); if (fabOpen) closeFab(); });
 
   // ── Render modifica modal canvas ──
   function renderModificaCanvas() {
@@ -3226,9 +3337,10 @@ function renderSaleGrid(grid) {
     const sz = modalCanvasSize();
     canvas.style.width  = sz.w + 'px';
     canvas.style.height = sz.h + 'px';
-    Array.from(canvas.querySelectorAll('.piantina-table')).forEach(el => el.remove());
+    canvas.querySelectorAll('.piantina-table, .piantina-merge-btn, .piantina-merge-popover').forEach(el => el.remove());
     const fab = document.getElementById('piantinaFabContainer');
-    (piantinaEditing.tables || []).forEach(t => canvas.insertBefore(makeTableEl(t, sz.w, sz.h), fab));
+    (piantinaEditing.tables || []).forEach(t => canvas.insertBefore(makeTableEl(t), fab));
+    renderMergeButtons(canvas, piantinaEditing.tables || [], piantinaEditing);
     const used  = (piantinaEditing.tables || []).reduce((s, t) => s + (t.coperti || 0), 0);
     const total = piantinaEditing.copertiTotali || 0;
     const ctr   = document.getElementById('piantinaCopertCounter');
@@ -3242,16 +3354,13 @@ function renderSaleGrid(grid) {
   function renderFabMenu() {
     fabMenu.innerHTML = '';
     if (!fabOpen || !piantinaEditing) return;
-    (piantinaEditing.formeTaboli || []).forEach((shape, i) => {
+    ALL_SHAPES.forEach((shape, i) => {
       const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'piantina-fab-item';
+      btn.type = 'button'; btn.className = 'piantina-fab-item';
       btn.style.animationDelay = (i * 0.06) + 's';
-      btn.innerHTML = fabShapeSVG(shape) + '<span class="piantina-fab-item-label">' + (SHAPE_NAME[shape] || shape) + '</span>';
+      btn.innerHTML = fabShapeSVG(shape) + '<span class="piantina-fab-item-label">' + SHAPE_NAME[shape] + '</span>';
       btn.addEventListener('click', e => {
-        e.stopPropagation();
-        pendingPForma = shape;
-        closeFab();
+        e.stopPropagation(); pendingPForma = shape; closeFab();
         const existing = activePTableId ? piantinaEditing.tables.find(t => t.id === activePTableId) : null;
         openTableInfo(existing);
       });
@@ -3267,46 +3376,31 @@ function renderSaleGrid(grid) {
   (function() {
     const forma  = document.getElementById('piantinaForma');
     const copert = document.getElementById('piantinaCopert');
-    const chips  = Array.from(document.querySelectorAll('.piantina-shape-chip'));
-
     document.getElementById('salaPiantinaAddBtn').addEventListener('click', () => {
       if (document.getElementById('salaPiantinaAddBtn').disabled) return;
       forma.value = ''; copert.value = '30';
-      chips.forEach(c => c.classList.remove('active'));
       creaPiantinaOv.classList.add('visible');
     });
-    chips.forEach(ch => ch.addEventListener('click', () => ch.classList.toggle('active')));
-    document.getElementById('piantinaCopertMinus').addEventListener('click', () => {
-      copert.value = Math.max(1, (parseInt(copert.value) || 1) - 1);
-    });
-    document.getElementById('piantinaCopertPlus').addEventListener('click', () => {
-      copert.value = (parseInt(copert.value) || 1) + 1;
-    });
+    document.getElementById('piantinaCopertMinus').addEventListener('click', () => { copert.value = Math.max(1, (parseInt(copert.value) || 1) - 1); });
+    document.getElementById('piantinaCopertPlus').addEventListener('click',  () => { copert.value = (parseInt(copert.value) || 1) + 1; });
     copert.addEventListener('input', () => { copert.value = copert.value.replace(/[^0-9]/g, ''); });
     function closeCreaPiantina() { creaPiantinaOv.classList.remove('visible'); }
     document.getElementById('creaPiantinaClose').addEventListener('click', closeCreaPiantina);
     document.getElementById('creaPiantinaCancel').addEventListener('click', closeCreaPiantina);
     creaPiantinaOv.addEventListener('click', e => { if (e.target === creaPiantinaOv) closeCreaPiantina(); });
-
     document.getElementById('creaPiantinaConfirm').addEventListener('click', () => {
       const f = forma.value;
       if (!f) { forma.focus(); return; }
-      const sel = chips.filter(c => c.classList.contains('active')).map(c => c.dataset.shape);
-      if (!sel.length) return;
       const ct  = parseInt(copert.value) || 30;
       const idx = rooms.findIndex(r => r.id === currentSalaId);
       if (idx === -1) return;
-      rooms[idx].piantina = { forma: f, formeTaboli: sel, copertiTotali: ct, tables: [] };
-      saveSale();
-      closeCreaPiantina();
-      renderPiantinaView();
+      rooms[idx].piantina = { forma: f, formeTaboli: ALL_SHAPES.slice(), copertiTotali: ct, tables: [], merges: [] };
+      saveSale(); closeCreaPiantina(); renderPiantinaView();
     });
   })();
 
-  // ── View: Elimina button ──
-  document.getElementById('piantinaViewEliminaBtn').addEventListener('click', () => {
-    deletePSrc = 'view'; deletePOv.classList.add('visible');
-  });
+  // ── Elimina piantina button ──
+  document.getElementById('piantinaViewEliminaBtn').addEventListener('click', () => { deletePSrc = 'view'; deletePOv.classList.add('visible'); });
 
   // ── Delete piantina ──
   (function() {
@@ -3318,29 +3412,24 @@ function renderSaleGrid(grid) {
       const idx = rooms.findIndex(r => r.id === currentSalaId);
       if (idx !== -1) { rooms[idx].piantina = null; saveSale(); }
       if (deletePSrc === 'modifica') modificaPOv.classList.remove('visible');
-      closeDeleteP();
-      renderPiantinaView();
+      closeDeleteP(); renderPiantinaView();
     });
   })();
 
-  // ── Modifica modal (expand view) ──
+  // ── Modifica modal ──
   function openModificaPiantina() {
     const room = getRoom();
     if (!room || !room.piantina) return;
     editingMode = 'modal';
     piantinaEditing = JSON.parse(JSON.stringify(room.piantina));
-    if (!piantinaEditing.tables) {
-      piantinaEditing.tables = piantinaEditing.cells ? migrateOldCells(piantinaEditing.cells) : [];
-      delete piantinaEditing.cells;
-    }
+    if (!piantinaEditing.tables) { piantinaEditing.tables = piantinaEditing.cells ? migrateOldCells(piantinaEditing.cells) : []; delete piantinaEditing.cells; }
+    if (!piantinaEditing.merges) piantinaEditing.merges = [];
     activePTableId = null; pendingPForma = null; fabOpen = false; isExpanded = false;
     document.querySelector('.modal--piantina-modifica').classList.remove('expanded');
     document.getElementById('piantinaExpandBtn').innerHTML =
       '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
-    renderModificaCanvas();
-    modificaPOv.classList.add('visible');
+    renderModificaCanvas(); modificaPOv.classList.add('visible');
   }
-
   document.getElementById('piantinaExpandBtn').addEventListener('click', () => {
     isExpanded = !isExpanded;
     document.querySelector('.modal--piantina-modifica').classList.toggle('expanded', isExpanded);
@@ -3349,7 +3438,6 @@ function renderSaleGrid(grid) {
       : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
     renderModificaCanvas();
   });
-
   (function() {
     function closeModifica() { editingMode = 'view'; modificaPOv.classList.remove('visible'); closeFab(); }
     document.getElementById('modificaPiantinaClose').addEventListener('click', closeModifica);
@@ -3358,12 +3446,9 @@ function renderSaleGrid(grid) {
     document.getElementById('modificaPiantinaSalva').addEventListener('click', () => {
       const idx = rooms.findIndex(r => r.id === currentSalaId);
       if (idx !== -1) { rooms[idx].piantina = JSON.parse(JSON.stringify(piantinaEditing)); saveSale(); }
-      closeModifica();
-      renderPiantinaView();
+      closeModifica(); renderPiantinaView();
     });
-    document.getElementById('modificaPiantinaElimina').addEventListener('click', () => {
-      deletePSrc = 'modifica'; deletePOv.classList.add('visible');
-    });
+    document.getElementById('modificaPiantinaElimina').addEventListener('click', () => { deletePSrc = 'modifica'; deletePOv.classList.add('visible'); });
   })();
 
   // ── Table options popup ──
@@ -3375,37 +3460,68 @@ function renderSaleGrid(grid) {
       const p = getEditPiantina();
       const t = p && p.tables.find(t => t.id === activePTableId);
       pendingPForma = t ? t.forma : null;
-      closeCellOpts();
-      openTableInfo(t || null);
+      closeCellOpts(); openTableInfo(t || null);
     });
     document.getElementById('cellOptDeleteTable').addEventListener('click', () => {
       const p = getEditPiantina();
-      if (p) p.tables = p.tables.filter(t => t.id !== activePTableId);
-      activePTableId = null;
-      closeCellOpts();
-      afterEdit();
+      if (p) {
+        p.tables = p.tables.filter(t => t.id !== activePTableId);
+        if (p.merges) p.merges = p.merges.filter(m => !m.tableIds.includes(activePTableId));
+      }
+      activePTableId = null; closeCellOpts(); afterEdit();
     });
-    document.getElementById('cellOptChangeShape').addEventListener('click', () => {
-      closeCellOpts();
-      if (editingMode === 'view') openViewFab();
-      else openFab();
+    document.getElementById('cellOptChangeShape').addEventListener('click', () => { closeCellOpts(); openChangeShapeModal(); });
+  })();
+
+  // ── Change shape modal ──
+  function openChangeShapeModal() {
+    const p = getEditPiantina();
+    const t = p && activePTableId ? p.tables.find(t => t.id === activePTableId) : null;
+    if (!t) return;
+    pendingChangeForma = t.forma;
+    const list = document.getElementById('changeShapeList');
+    list.innerHTML = '';
+    ALL_SHAPES.forEach(shape => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'change-shape-item' + (shape === t.forma ? ' selected' : '');
+      item.innerHTML = fabShapeSVG(shape) + '<span class="change-shape-item-label">' + SHAPE_NAME[shape] + '</span>';
+      item.addEventListener('click', () => {
+        list.querySelectorAll('.change-shape-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        pendingChangeForma = shape;
+      });
+      list.appendChild(item);
+    });
+    changeShapeOv.classList.add('visible');
+  }
+  (function() {
+    function closeChangeShape() { changeShapeOv.classList.remove('visible'); pendingChangeForma = null; }
+    document.getElementById('changeShapeClose').addEventListener('click', closeChangeShape);
+    document.getElementById('changeShapeCancel').addEventListener('click', closeChangeShape);
+    changeShapeOv.addEventListener('click', e => { if (e.target === changeShapeOv) closeChangeShape(); });
+    document.getElementById('changeShapeConfirm').addEventListener('click', () => {
+      if (!pendingChangeForma || !activePTableId) return;
+      const p = getEditPiantina();
+      if (!p) return;
+      const t = p.tables.find(t => t.id === activePTableId);
+      if (t) {
+        t.forma = pendingChangeForma;
+        if (p.merges) p.merges = p.merges.filter(m => !m.tableIds.includes(activePTableId));
+      }
+      closeChangeShape(); afterEdit();
     });
   })();
 
   // ── Table info popup ──
   (function() {
-    document.getElementById('tableInfoCapMinus').addEventListener('click', () => {
-      tableInfoCapEl.value = Math.max(1, (parseInt(tableInfoCapEl.value) || 2) - 1);
-    });
-    document.getElementById('tableInfoCapPlus').addEventListener('click', () => {
-      tableInfoCapEl.value = (parseInt(tableInfoCapEl.value) || 2) + 1;
-    });
+    document.getElementById('tableInfoCapMinus').addEventListener('click', () => { tableInfoCapEl.value = Math.max(1, (parseInt(tableInfoCapEl.value) || 2) - 1); });
+    document.getElementById('tableInfoCapPlus').addEventListener('click',  () => { tableInfoCapEl.value = (parseInt(tableInfoCapEl.value) || 2) + 1; });
     tableInfoCapEl.addEventListener('input', () => { tableInfoCapEl.value = tableInfoCapEl.value.replace(/[^0-9]/g, ''); });
     function closeTableInfo() { tableInfoOv.classList.remove('visible'); }
     document.getElementById('tableInfoClose').addEventListener('click', closeTableInfo);
     document.getElementById('tableInfoCancel').addEventListener('click', closeTableInfo);
     tableInfoOv.addEventListener('click', e => { if (e.target === tableInfoOv) closeTableInfo(); });
-
     document.getElementById('tableInfoConfirm').addEventListener('click', () => {
       if (!pendingPForma) return;
       const numerativo = document.getElementById('tableInfoNum').value.trim();
@@ -3420,15 +3536,17 @@ function renderSaleGrid(grid) {
         const pos = findFreePos(pendingPForma, p);
         p.tables.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), forma: pendingPForma, numerativo, coperti, note, x: pos.x, y: pos.y });
       }
-      pendingPForma = null; activePTableId = null;
-      closeTableInfo();
-      afterEdit();
+      pendingPForma = null; activePTableId = null; closeTableInfo(); afterEdit();
     });
   })();
 
   function findFreePos(forma, p) {
     const sz  = TABLE_SZ[forma] || TABLE_SZ.quadrato;
-    const csz = editingMode === 'view' ? { w: VIEW_W, h: VIEW_H } : modalCanvasSize();
+    const cur = editingMode === 'view' ? viewCanvasSize(p.tables) : modalCanvasSize();
+    // Search area extends beyond current canvas so new tables can expand it
+    const csz = editingMode === 'view'
+      ? { w: cur.w + sz.w + PGRID * 4, h: cur.h + sz.h + PGRID * 4 }
+      : cur;
     const occ = (p.tables || []).map(t => {
       const s = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
       return { x: t.x * PGRID, y: t.y * PGRID, w: s.w, h: s.h };

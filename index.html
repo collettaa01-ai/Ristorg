@@ -462,9 +462,6 @@
 
           <!-- Piantina view area (rendered by JS when piantina exists) -->
           <div id="piantinaViewArea" style="display:none; margin-top:12px;">
-            <div class="piantina-view-topbar">
-              <span id="piantinaViewCounter" class="piantina-copert-counter"></span>
-            </div>
             <div class="piantina-view-canvas" id="piantinaViewCanvas"></div>
             <div class="piantina-view-actions">
               <div class="piantina-aggiungi-wrap">
@@ -862,31 +859,12 @@
             <option value="rettangolare">Rettangolare</option>
           </select>
         </div>
-        <div class="res-row" style="margin-top:12px; align-items:flex-start;">
-          <div class="res-box" style="flex:1;">
-            <span class="res-box-label">Forme dei tavoli</span>
-            <div class="piantina-shape-chips">
-              <button type="button" class="piantina-shape-chip" data-shape="quadrato">
-                <svg viewBox="0 0 12 12" width="12" height="12"><rect x="1" y="1" width="10" height="10" rx="1" fill="currentColor"/></svg>
-                Quadrati
-              </button>
-              <button type="button" class="piantina-shape-chip" data-shape="rettangolo">
-                <svg viewBox="0 0 16 10" width="16" height="10"><rect x="1" y="1" width="14" height="8" rx="1" fill="currentColor"/></svg>
-                Rettangolari
-              </button>
-              <button type="button" class="piantina-shape-chip" data-shape="rotondo">
-                <svg viewBox="0 0 12 12" width="12" height="12"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>
-                Rotondi
-              </button>
-            </div>
-          </div>
-          <div class="res-box" style="flex:0 0 auto;">
-            <span class="res-box-label">Coperti disponibili</span>
-            <div class="res-pax-control">
-              <button type="button" class="res-pax-btn" id="piantinaCopertMinus">−</button>
-              <input type="text" id="piantinaCopert" class="res-pax-input" value="30" inputmode="numeric">
-              <button type="button" class="res-pax-btn" id="piantinaCopertPlus">+</button>
-            </div>
+        <div class="res-box" style="margin-top:12px;">
+          <span class="res-box-label">Coperti disponibili</span>
+          <div class="res-pax-control">
+            <button type="button" class="res-pax-btn" id="piantinaCopertMinus">−</button>
+            <input type="text" id="piantinaCopert" class="res-pax-input" value="30" inputmode="numeric">
+            <button type="button" class="res-pax-btn" id="piantinaCopertPlus">+</button>
           </div>
         </div>
       </div>
@@ -970,6 +948,25 @@
       <div class="modal-footer">
         <button class="btn btn--secondary" id="tableInfoCancel">Annulla</button>
         <button class="btn btn--primary" id="tableInfoConfirm">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change shape popup -->
+  <div class="modal-overlay modal-overlay--top" id="changeShapeOverlay">
+    <div class="modal modal--small">
+      <div class="modal-header">
+        <h3>Cambia forma del tavolo</h3>
+        <button class="modal-close" id="changeShapeClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="changeShapeList" class="change-shape-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="changeShapeCancel">Annulla</button>
+        <button class="btn btn--primary" id="changeShapeConfirm">Salva modifiche</button>
       </div>
     </div>
   </div>
