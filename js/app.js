@@ -3172,33 +3172,72 @@ function renderSaleGrid(grid) {
     el.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
       e.preventDefault(); e.stopPropagation();
+      const canvas = el.parentElement;
+      // Don't start drag if merge partner is already dragging
+      const pChk = getEditPiantina();
+      if (pChk && pChk.merges) {
+        const mgChk = pChk.merges.find(m => m.active && m.tableIds.includes(tableId));
+        if (mgChk) {
+          const pidChk = mgChk.tableIds.find(id => id !== tableId);
+          const pElChk = canvas && canvas.querySelector('[data-id="' + pidChk + '"]');
+          if (pElChk && pElChk.classList.contains('dragging')) return;
+        }
+      }
       moved = false; sx = e.clientX; sy = e.clientY;
       ox = parseInt(el.style.left) || 0;
       oy = parseInt(el.style.top)  || 0;
       el.classList.add('dragging');
+      // Find active merge partner
+      const p0 = getEditPiantina();
+      let partnerData = null, partnerEl = null, pox = 0, poy = 0, partnerSz = null;
+      if (p0 && p0.merges) {
+        const mg = p0.merges.find(m => m.active && m.tableIds.includes(tableId));
+        if (mg) {
+          const pid = mg.tableIds.find(id => id !== tableId);
+          partnerData = p0.tables.find(t => t.id === pid);
+          if (partnerData && canvas) {
+            partnerEl = canvas.querySelector('[data-id="' + pid + '"]');
+            pox = partnerEl ? (parseInt(partnerEl.style.left) || 0) : partnerData.x * PGRID;
+            poy = partnerEl ? (parseInt(partnerEl.style.top)  || 0) : partnerData.y * PGRID;
+            partnerSz = getTableSz(partnerData);
+            if (partnerEl) partnerEl.classList.add('dragging');
+          }
+        }
+      }
       function onMove(e) {
-        const canvas = el.parentElement;
-        const cw = canvas ? (parseInt(canvas.style.width)  || VIEW_MIN_W) : VIEW_MIN_W;
-        const ch = canvas ? (parseInt(canvas.style.height) || VIEW_MIN_H) : VIEW_MIN_H;
+        const cvs = el.parentElement;
+        const cw = cvs ? (parseInt(cvs.style.width)  || VIEW_MIN_W) : VIEW_MIN_W;
+        const ch = cvs ? (parseInt(cvs.style.height) || VIEW_MIN_H) : VIEW_MIN_H;
         const dx = e.clientX - sx, dy = e.clientY - sy;
         if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
         let nx = Math.round((ox + dx) / PGRID) * PGRID;
         let ny = Math.round((oy + dy) / PGRID) * PGRID;
         nx = Math.max(0, Math.min(cw - sz.w, nx));
         ny = Math.max(0, Math.min(ch - sz.h, ny));
-        const p = getEditPiantina();
-        if (p) {
-          const blocked = p.tables.filter(t => t.id !== tableId).some(t => {
+        let pnx = null, pny = null;
+        if (partnerData && partnerSz) {
+          pnx = pox + (nx - ox);
+          pny = poy + (ny - oy);
+          if (pnx < 0 || pny < 0 || pnx + partnerSz.w > cw || pny + partnerSz.h > ch) return;
+        }
+        const pData = getEditPiantina();
+        if (pData) {
+          const excl = partnerData ? [tableId, partnerData.id] : [tableId];
+          const blocked = pData.tables.filter(t => !excl.includes(t.id)).some(t => {
             const ts = getTableSz(t);
             const tx = t.x * PGRID, ty = t.y * PGRID;
-            return nx < tx + ts.w && nx + sz.w > tx && ny < ty + ts.h && ny + sz.h > ty;
+            const b1 = nx < tx + ts.w && nx + sz.w > tx && ny < ty + ts.h && ny + sz.h > ty;
+            const b2 = pnx !== null && pnx < tx + ts.w && pnx + partnerSz.w > tx && pny < ty + ts.h && pny + partnerSz.h > ty;
+            return b1 || b2;
           });
           if (blocked) return;
         }
         el.style.left = nx + 'px'; el.style.top = ny + 'px';
+        if (partnerEl && pnx !== null) { partnerEl.style.left = pnx + 'px'; partnerEl.style.top = pny + 'px'; }
       }
       function onUp() {
         el.classList.remove('dragging');
+        if (partnerEl) partnerEl.classList.remove('dragging');
         if (moved) {
           el.dataset.dragged = '1';
           const newX = parseInt(el.style.left) / PGRID;
@@ -3207,6 +3246,10 @@ function renderSaleGrid(grid) {
           if (p) {
             const t = p.tables.find(t => t.id === tableId);
             if (t) { t.x = newX; t.y = newY; }
+            if (partnerData && partnerEl) {
+              partnerData.x = parseInt(partnerEl.style.left) / PGRID;
+              partnerData.y = parseInt(partnerEl.style.top)  / PGRID;
+            }
             if (editingMode === 'view') { saveSale(); renderPiantinaView(); }
             else renderModificaCanvas();
           }
@@ -3219,41 +3262,138 @@ function renderSaleGrid(grid) {
     });
   }
 
+  // ── Snap two tables together on merge activation ──
+  function snapMergedTables(id1, id2, p) {
+    const t1 = p.tables.find(t => t.id === id1);
+    const t2 = p.tables.find(t => t.id === id2);
+    if (!t1 || !t2) return;
+    const s1 = getTableSz(t1), s2 = getTableSz(t2);
+    const r1 = { x: t1.x * PGRID, y: t1.y * PGRID, w: s1.w, h: s1.h };
+    const r2 = { x: t2.x * PGRID, y: t2.y * PGRID, w: s2.w, h: s2.h };
+    const cxDiff = Math.abs((r1.x + r1.w/2) - (r2.x + r2.w/2));
+    const cyDiff = Math.abs((r1.y + r1.h/2) - (r2.y + r2.h/2));
+    if (cxDiff >= cyDiff) {
+      if (r2.x >= r1.x) { t2.x = Math.round((r1.x + r1.w) / PGRID); }
+      else               { t2.x = Math.round((r1.x - s2.w) / PGRID); }
+      t2.y = Math.round(r1.y / PGRID);
+    } else {
+      if (r2.y >= r1.y) { t2.y = Math.round((r1.y + r1.h) / PGRID); }
+      else               { t2.y = Math.round((r1.y - s2.h) / PGRID); }
+      t2.x = Math.round(r1.x / PGRID);
+    }
+  }
+
+  // ── Rotate a merged pair (swap horizontal/vertical layout) ──
+  function rotateMergedPair(mergeKey, isHoriz) {
+    const p = getEditPiantina();
+    if (!p) return;
+    const merge = p.merges && p.merges.find(m => [...m.tableIds].sort().join(':') === mergeKey);
+    if (!merge || !merge.active) return;
+    const t1 = p.tables.find(t => t.id === merge.tableIds[0]);
+    const t2 = p.tables.find(t => t.id === merge.tableIds[1]);
+    if (!t1 || !t2) return;
+    if (t1.forma === 'rettangolo') { t1.rotated = !t1.rotated; t2.rotated = !t2.rotated; }
+    const s1 = getTableSz(t1);
+    const r1x = t1.x * PGRID, r1y = t1.y * PGRID;
+    if (isHoriz) { t2.x = Math.round(r1x / PGRID); t2.y = Math.round((r1y + s1.h) / PGRID); }
+    else         { t2.x = Math.round((r1x + s1.w) / PGRID); t2.y = Math.round(r1y / PGRID); }
+  }
+
+  // ── Visual connectors covering the shared edge of active merges ──
+  function renderMergeConnectors(canvas, tables, p) {
+    canvas.querySelectorAll('.piantina-merge-connector').forEach(el => el.remove());
+    if (!p.merges) return;
+    p.merges.forEach(merge => {
+      if (!merge.active) return;
+      const t1 = tables.find(t => t.id === merge.tableIds[0]);
+      const t2 = tables.find(t => t.id === merge.tableIds[1]);
+      if (!t1 || !t2) return;
+      const s1 = getTableSz(t1), s2 = getTableSz(t2);
+      const r1 = { x: t1.x * PGRID, y: t1.y * PGRID, w: s1.w, h: s1.h };
+      const r2 = { x: t2.x * PGRID, y: t2.y * PGRID, w: s2.w, h: s2.h };
+      const cxDiff = Math.abs((r1.x + r1.w/2) - (r2.x + r2.w/2));
+      const cyDiff = Math.abs((r1.y + r1.h/2) - (r2.y + r2.h/2));
+      const conn = document.createElement('div');
+      conn.className = 'piantina-merge-connector';
+      if (cxDiff >= cyDiff) {
+        const left  = r1.x <= r2.x ? r1 : r2;
+        const right = r1.x <= r2.x ? r2 : r1;
+        const connX = left.x + left.w - 8;
+        const connY = Math.max(left.y, right.y);
+        const connH = Math.min(left.y + left.h, right.y + right.h) - connY;
+        const gap   = Math.max(0, right.x - (left.x + left.w));
+        if (connH > 0) conn.style.cssText = `left:${connX}px;top:${connY}px;width:${gap+16}px;height:${connH}px;`;
+      } else {
+        const top = r1.y <= r2.y ? r1 : r2;
+        const bot = r1.y <= r2.y ? r2 : r1;
+        const connX = Math.max(top.x, bot.x);
+        const connY = top.y + top.h - 8;
+        const connW = Math.min(top.x + top.w, bot.x + bot.w) - connX;
+        const gap   = Math.max(0, bot.y - (top.y + top.h));
+        if (connW > 0) conn.style.cssText = `left:${connX}px;top:${connY}px;width:${connW}px;height:${gap+16}px;`;
+      }
+      if (conn.style.cssText) canvas.insertBefore(conn, canvas.firstChild);
+    });
+  }
+
   // ── Merge buttons between adjacent same-shape tables ──
   function renderMergeButtons(canvas, tables, p) {
-    canvas.querySelectorAll('.piantina-merge-btn').forEach(el => el.remove());
+    canvas.querySelectorAll('.piantina-merge-btn, .piantina-merge-rot-btn').forEach(el => el.remove());
     if (!tables || tables.length < 2) return;
     const merges = p.merges || [];
+    const cw = parseInt(canvas.style.width)  || VIEW_MIN_W;
+    const ch = parseInt(canvas.style.height) || VIEW_MIN_H;
     for (let i = 0; i < tables.length; i++) {
       for (let j = i + 1; j < tables.length; j++) {
         const t1 = tables[i], t2 = tables[j];
         if (t1.forma !== t2.forma) continue;
-        if (t1.forma === 'rotondo') continue; // round tables can't merge
-        const s1 = getTableSz(t1);
-        const s2 = getTableSz(t2);
+        if (t1.forma === 'rotondo') continue;
+        const s1 = getTableSz(t1), s2 = getTableSz(t2);
         const r1 = { x: t1.x * PGRID, y: t1.y * PGRID, w: s1.w, h: s1.h };
         const r2 = { x: t2.x * PGRID, y: t2.y * PGRID, w: s2.w, h: s2.h };
         const gapX = Math.max(0, Math.max(r1.x - (r2.x + r2.w), r2.x - (r1.x + r1.w)));
         const gapY = Math.max(0, Math.max(r1.y - (r2.y + r2.h), r2.y - (r1.y + r1.h)));
         if (gapX > PGRID || gapY > PGRID || (gapX > 0 && gapY > 0)) continue;
-        // Place button at midpoint between the nearest edges, not the center‐to‐center midpoint
-        // For vertical adjacency: offset horizontally to avoid the badge (which is centered)
-        const isVert = gapY >= 0 && gapX === 0;
-        let cx = (r1.x + r1.w / 2 + r2.x + r2.w / 2) / 2;
-        const cy = (r1.y + r1.h / 2 + r2.y + r2.h / 2) / 2;
-        if (isVert) cx = Math.min(r1.x, r2.x) + Math.min(r1.w, r2.w) * 0.75; // avoid badge center
         const mergeKey = [t1.id, t2.id].sort().join(':');
         const existing = merges.find(m => [...m.tableIds].sort().join(':') === mergeKey);
         const isActive = existing ? existing.active : false;
+        // Determine layout direction by center-to-center delta
+        const cxDiff = Math.abs((r1.x + r1.w/2) - (r2.x + r2.w/2));
+        const cyDiff = Math.abs((r1.y + r1.h/2) - (r2.y + r2.h/2));
+        const isHoriz = cxDiff >= cyDiff;
+        let btnX, btnY;
+        if (isHoriz) {
+          // Place merge button ABOVE the combined bounding box
+          btnX = (r1.x + r1.w/2 + r2.x + r2.w/2) / 2;
+          btnY = Math.min(r1.y, r2.y) - 14;
+          if (btnY < 8) btnY = Math.max(r1.y + r1.h, r2.y + r2.h) + 14;
+        } else {
+          // Place merge button to the RIGHT of the combined bounding box
+          btnX = Math.max(r1.x + r1.w, r2.x + r2.w) + 14;
+          btnY = (r1.y + r1.h/2 + r2.y + r2.h/2) / 2;
+          if (btnX + 11 > cw - 8) btnX = Math.min(r1.x, r2.x) - 14;
+        }
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'piantina-merge-btn' + (isActive ? ' active' : '');
-        btn.style.left = cx + 'px';
-        btn.style.top  = cy + 'px';
+        btn.style.left = btnX + 'px';
+        btn.style.top  = btnY + 'px';
         btn.innerHTML  = mergeSVG(isActive);
         btn.dataset.t1 = t1.id; btn.dataset.t2 = t2.id;
         btn.addEventListener('click', e => { e.stopPropagation(); openMergePopover(btn, t1.id, t2.id, p); });
         canvas.appendChild(btn);
+        // Rotation button for active merged pairs
+        if (isActive) {
+          const rotBtn = document.createElement('button');
+          rotBtn.type = 'button';
+          rotBtn.className = 'piantina-merge-rot-btn';
+          rotBtn.title = 'Ruota unione';
+          rotBtn.innerHTML = '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6A6 6 0 1 0 13.5 10"/><polyline points="13.5 3 13.5 6 16 6"/></svg>';
+          if (isHoriz) { rotBtn.style.left = (btnX + 24) + 'px'; rotBtn.style.top = btnY + 'px'; }
+          else         { rotBtn.style.left = btnX + 'px'; rotBtn.style.top = (btnY + 24) + 'px'; }
+          rotBtn.addEventListener('click', e => { e.stopPropagation(); rotateMergedPair(mergeKey, isHoriz); afterEdit(); });
+          canvas.appendChild(rotBtn);
+        }
       }
     }
   }
@@ -3293,12 +3433,10 @@ function renderSaleGrid(grid) {
       if (!p.merges) p.merges = [];
       let m = p.merges.find(m => [...m.tableIds].sort().join(':') === mergeKey);
       if (m) m.active = na; else p.merges.push({ id: Date.now().toString(36), tableIds: [t1Id, t2Id], active: na });
-      const lbl = pop.querySelector('.merge-toggle-label');
-      lbl.textContent = na ? 'Tavoli Uniti' : 'Unisci tavoli';
-      lbl.className   = 'merge-toggle-label' + (na ? ' active' : '');
-      btn.className   = 'piantina-merge-btn' + (na ? ' active' : '');
-      btn.innerHTML   = mergeSVG(na);
+      if (na) snapMergedTables(t1Id, t2Id, p);
       if (editingMode === 'view') saveSale();
+      closeMergePopover();
+      afterEdit();
     });
     canvas.appendChild(pop);
     activeMergePopover = pop;
@@ -3324,6 +3462,7 @@ function renderSaleGrid(grid) {
       viewCanvas.style.height = h + 'px';
       viewCanvas.innerHTML = '';
       p.tables.forEach(t => viewCanvas.appendChild(makeTableEl(t)));
+      renderMergeConnectors(viewCanvas, p.tables, p);
       renderMergeButtons(viewCanvas, p.tables, p);
       const used  = p.tables.reduce((s, t) => s + (t.coperti || 0), 0);
       const total = p.copertiTotali || 0;
@@ -3377,9 +3516,10 @@ function renderSaleGrid(grid) {
     const sz = modalCanvasSize();
     canvas.style.width  = sz.w + 'px';
     canvas.style.height = sz.h + 'px';
-    canvas.querySelectorAll('.piantina-table, .piantina-merge-btn, .piantina-merge-popover').forEach(el => el.remove());
+    canvas.querySelectorAll('.piantina-table, .piantina-merge-btn, .piantina-merge-popover, .piantina-merge-connector, .piantina-merge-rot-btn').forEach(el => el.remove());
     const fab = document.getElementById('piantinaFabContainer');
     (piantinaEditing.tables || []).forEach(t => canvas.insertBefore(makeTableEl(t), fab));
+    renderMergeConnectors(canvas, piantinaEditing.tables || [], piantinaEditing);
     renderMergeButtons(canvas, piantinaEditing.tables || [], piantinaEditing);
     const used  = (piantinaEditing.tables || []).reduce((s, t) => s + (t.coperti || 0), 0);
     const total = piantinaEditing.copertiTotali || 0;
