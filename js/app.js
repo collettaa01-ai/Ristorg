@@ -2996,36 +2996,45 @@ function renderSaleGrid(grid) {
   // ────────────────────────────────────────────
   // Piantina (floor plan) management
   // ────────────────────────────────────────────
-  const PGRID = 40;
-  const CANVAS_W = 700, CANVAS_H = 440;
-  const CANVAS_W_EXP = 980, CANVAS_H_EXP = 600;
+  const PGRID = 28;                              // snap unit px
+  const VIEW_W = 640, VIEW_H = 300;             // view-canvas (sala detail)
+  const MODAL_W = 860, MODAL_H = 500;           // modifica modal canvas
+  const MODAL_W_EXP = 1020, MODAL_H_EXP = 620; // expanded modal canvas
   const TABLE_SZ = {
-    quadrato:   { w: 80,  h: 80  },
-    rettangolo: { w: 120, h: 80  },
-    rotondo:    { w: 80,  h: 80  }
+    quadrato:   { w: 56, h: 56 },
+    rettangolo: { w: 84, h: 56 },
+    rotondo:    { w: 56, h: 56 }
   };
   const SHAPE_NAME = { quadrato: 'Quadrato', rettangolo: 'Rettangolo', rotondo: 'Rotondo' };
 
-  function tableSVG(forma, label) {
+  function tableSVG(forma, label, sz) {
     const l = escapeHTML(label || '');
+    const { w, h } = sz || TABLE_SZ[forma] || TABLE_SZ.quadrato;
+    const fs = Math.max(11, Math.round(Math.min(w, h) * 0.26));
+    const fill = 'rgba(96,165,250,0.48)';
+    const tf   = '#1e3a5f';
     if (forma === 'rettangolo')
-      return `<svg viewBox="0 0 120 80" width="100%" height="100%"><rect x="5" y="5" width="110" height="70" rx="10" fill="var(--accent)"/><text x="60" y="40" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="18" font-weight="700">${l}</text></svg>`;
+      return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><rect x="4" y="4" width="${w-8}" height="${h-8}" rx="8" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
     if (forma === 'rotondo')
-      return `<svg viewBox="0 0 80 80" width="100%" height="100%"><circle cx="40" cy="40" r="35" fill="var(--accent)"/><text x="40" y="40" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="18" font-weight="700">${l}</text></svg>`;
-    return `<svg viewBox="0 0 80 80" width="100%" height="100%"><rect x="5" y="5" width="70" height="70" rx="10" fill="var(--accent)"/><text x="40" y="40" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="18" font-weight="700">${l}</text></svg>`;
+      return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><circle cx="${w/2}" cy="${h/2}" r="${Math.min(w,h)/2-4}" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><rect x="4" y="4" width="${w-8}" height="${h-8}" rx="8" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
   }
 
   function fabShapeSVG(forma) {
+    const fill = 'rgba(96,165,250,0.7)';
     if (forma === 'rettangolo')
-      return '<svg viewBox="0 0 48 32" width="40" height="27" fill="var(--accent)"><rect x="2" y="2" width="44" height="28" rx="5"/></svg>';
+      return `<svg viewBox="0 0 48 32" width="40" height="27"><rect x="2" y="2" width="44" height="28" rx="5" fill="${fill}"/></svg>`;
     if (forma === 'rotondo')
-      return '<svg viewBox="0 0 36 36" width="30" height="30" fill="var(--accent)"><circle cx="18" cy="18" r="14"/></svg>';
-    return '<svg viewBox="0 0 36 36" width="30" height="30" fill="var(--accent)"><rect x="2" y="2" width="32" height="32" rx="5"/></svg>';
+      return `<svg viewBox="0 0 36 36" width="30" height="30"><circle cx="18" cy="18" r="14" fill="${fill}"/></svg>`;
+    return `<svg viewBox="0 0 36 36" width="30" height="30"><rect x="2" y="2" width="32" height="32" rx="5" fill="${fill}"/></svg>`;
   }
 
-  let piantinaEditing = null;
+  // ── State ──
+  let piantinaEditing = null; // used by modifica modal
+  let editingMode     = 'view'; // 'view' | 'modal'
   let activePTableId  = null;
   let pendingPForma   = null;
+  let viewFabOpen     = false;
   let fabOpen         = false;
   let isExpanded      = false;
   let deletePSrc      = null;
@@ -3038,9 +3047,25 @@ function renderSaleGrid(grid) {
   const tableInfoCapEl = document.getElementById('tableInfoCap');
   const fabBtn         = document.getElementById('piantinaFabBtn');
   const fabMenu        = document.getElementById('piantinaFabMenu');
+  const aggiungiBtn    = document.getElementById('piantinaAggiungiBtn');
+  const aggiungiMen    = document.getElementById('piantinaAggiungiMen');
 
   function getRoom() { return rooms.find(r => r.id === currentSalaId); }
-  function canvasSize() { return isExpanded ? { w: CANVAS_W_EXP, h: CANVAS_H_EXP } : { w: CANVAS_W, h: CANVAS_H }; }
+  function modalCanvasSize() { return isExpanded ? { w: MODAL_W_EXP, h: MODAL_H_EXP } : { w: MODAL_W, h: MODAL_H }; }
+
+  // Returns the piantina object currently being edited
+  function getEditPiantina() {
+    return editingMode === 'view' ? (getRoom() && getRoom().piantina) : piantinaEditing;
+  }
+  // Persists and re-renders after an edit
+  function afterEdit() {
+    if (editingMode === 'view') {
+      saveSale();
+      renderPiantinaView();
+    } else {
+      renderModificaCanvas();
+    }
+  }
 
   function migrateOldCells(cells) {
     if (!cells) return [];
@@ -3050,39 +3075,41 @@ function renderSaleGrid(grid) {
     });
   }
 
-  function makeTableEl(t, editable) {
+  // ── Build a table DOM element ──
+  function makeTableEl(t, cw, ch) {
     const sz  = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
     const div = document.createElement('div');
-    div.className = 'piantina-table' + (editable ? ' piantina-table--edit' : '');
+    div.className = 'piantina-table piantina-table--edit';
     div.dataset.id = t.id;
     div.style.cssText = `left:${t.x * PGRID}px;top:${t.y * PGRID}px;width:${sz.w}px;height:${sz.h}px`;
     div.innerHTML =
-      '<div class="piantina-table-shape">' + tableSVG(t.forma, t.numerativo) + '</div>' +
+      '<div class="piantina-table-shape">' + tableSVG(t.forma, t.numerativo, sz) + '</div>' +
       '<div class="piantina-table-badge">' +
-        '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
+        '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
         '<span>' + (t.coperti || 0) + '</span>' +
       '</div>';
-    if (!editable) {
-      const tip = document.createElement('div');
-      tip.className = 'piantina-table-tooltip';
-      tip.innerHTML = '<strong>Tavolo ' + escapeHTML(t.numerativo || '—') + '</strong>' +
-        '<div>Coperti: ' + (t.coperti || 0) + '</div>' +
-        (t.note ? '<div>' + escapeHTML(t.note) + '</div>' : '');
-      div.appendChild(tip);
-    }
-    if (editable) {
-      makeDraggable(div, sz);
-      div.addEventListener('click', e => {
-        if (div.dataset.dragged === '1') { div.dataset.dragged = '0'; return; }
-        if (fabOpen) { closeFab(); return; }
-        activePTableId = t.id;
-        cellOptionsOv.classList.add('visible');
-      });
-    }
+    // Hover tooltip (always present)
+    const tip = document.createElement('div');
+    tip.className = 'piantina-table-tooltip';
+    tip.innerHTML =
+      '<strong>Tavolo ' + escapeHTML(t.numerativo || '—') + '</strong>' +
+      'Coperti: ' + (t.coperti || 0) +
+      (t.note ? '<br>' + escapeHTML(t.note) : '');
+    div.appendChild(tip);
+    // Drag
+    makeDraggable(div, sz, cw, ch, t.id);
+    // Click
+    div.addEventListener('click', e => {
+      if (div.dataset.dragged === '1') { div.dataset.dragged = '0'; return; }
+      if (viewFabOpen) { closeViewFab(); return; }
+      if (fabOpen)     { closeFab();     return; }
+      activePTableId = t.id;
+      cellOptionsOv.classList.add('visible');
+    });
     return div;
   }
 
-  function makeDraggable(el, sz) {
+  function makeDraggable(el, sz, cw, ch, tableId) {
     let sx, sy, ox, oy, moved;
     el.addEventListener('mousedown', e => {
       if (e.button !== 0) return;
@@ -3091,9 +3118,6 @@ function renderSaleGrid(grid) {
       ox = parseInt(el.style.left) || 0;
       oy = parseInt(el.style.top)  || 0;
       el.classList.add('dragging');
-      const canvas = el.parentElement;
-      const cw = parseInt(canvas.style.width)  || CANVAS_W;
-      const ch = parseInt(canvas.style.height) || CANVAS_H;
       function onMove(e) {
         const dx = e.clientX - sx, dy = e.clientY - sy;
         if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
@@ -3107,9 +3131,14 @@ function renderSaleGrid(grid) {
         el.classList.remove('dragging');
         if (moved) {
           el.dataset.dragged = '1';
-          const id = el.dataset.id;
-          const t  = piantinaEditing.tables.find(t => t.id === id);
-          if (t) { t.x = parseInt(el.style.left) / PGRID; t.y = parseInt(el.style.top) / PGRID; }
+          const newX = parseInt(el.style.left) / PGRID;
+          const newY = parseInt(el.style.top)  / PGRID;
+          const p = getEditPiantina();
+          if (p) {
+            const t = p.tables.find(t => t.id === tableId);
+            if (t) { t.x = newX; t.y = newY; }
+            if (editingMode === 'view') saveSale();
+          }
         }
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
@@ -3119,21 +3148,33 @@ function renderSaleGrid(grid) {
     });
   }
 
+  // ── Render view canvas (sala detail, direct edit) ──
   function renderPiantinaView() {
+    editingMode = 'view';
     const addBtn     = document.getElementById('salaPiantinaAddBtn');
     const viewArea   = document.getElementById('piantinaViewArea');
     const viewCanvas = document.getElementById('piantinaViewCanvas');
     if (!addBtn || !viewArea || !viewCanvas) return;
     const room = getRoom();
     const p    = room && room.piantina;
-    if (p && (p.tables || p.cells)) {
+    if (p) {
       addBtn.disabled = true;
       addBtn.classList.add('disabled');
-      const tables = p.tables || migrateOldCells(p.cells);
-      viewCanvas.style.width  = CANVAS_W + 'px';
-      viewCanvas.style.height = CANVAS_H + 'px';
+      if (!p.tables) {
+        p.tables = p.cells ? migrateOldCells(p.cells) : [];
+        delete p.cells;
+      }
+      viewCanvas.style.width  = VIEW_W + 'px';
+      viewCanvas.style.height = VIEW_H + 'px';
       viewCanvas.innerHTML = '';
-      tables.forEach(t => viewCanvas.appendChild(makeTableEl(t, false)));
+      p.tables.forEach(t => viewCanvas.appendChild(makeTableEl(t, VIEW_W, VIEW_H)));
+      // Coperti counter
+      const used  = p.tables.reduce((s, t) => s + (t.coperti || 0), 0);
+      const total = p.copertiTotali || 0;
+      const ctr   = document.getElementById('piantinaViewCounter');
+      if (ctr) ctr.innerHTML =
+        '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
+        ' <span>' + used + ' / ' + total + ' coperti</span>';
       viewArea.style.display = 'block';
     } else {
       addBtn.disabled = false;
@@ -3142,15 +3183,52 @@ function renderSaleGrid(grid) {
     }
   }
 
+  // ── View FAB (Aggiungi tavolo) ──
+  function renderViewFabMenu() {
+    aggiungiMen.innerHTML = '';
+    const p = getRoom() && getRoom().piantina;
+    if (!p) return;
+    (p.formeTaboli || []).forEach((shape, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'piantina-fab-item';
+      btn.style.animationDelay = (i * 0.06) + 's';
+      btn.innerHTML = fabShapeSVG(shape) + '<span class="piantina-fab-item-label">' + (SHAPE_NAME[shape] || shape) + '</span>';
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        pendingPForma = shape;
+        closeViewFab();
+        const p2 = getEditPiantina();
+        const existing = activePTableId && p2 ? p2.tables.find(t => t.id === activePTableId) : null;
+        openTableInfo(existing);
+      });
+      aggiungiMen.appendChild(btn);
+    });
+  }
+  function openViewFab()  { viewFabOpen = true;  aggiungiBtn.classList.add('active');  aggiungiMen.style.display = 'flex'; renderViewFabMenu(); }
+  function closeViewFab() { viewFabOpen = false; aggiungiBtn.classList.remove('active'); aggiungiMen.style.display = 'none'; aggiungiMen.innerHTML = ''; }
+
+  aggiungiBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    editingMode = 'view';
+    activePTableId = null; // new table, not changing shape
+    viewFabOpen ? closeViewFab() : openViewFab();
+  });
+  document.addEventListener('click', () => {
+    if (viewFabOpen) closeViewFab();
+    if (fabOpen)     closeFab();
+  });
+
+  // ── Render modifica modal canvas ──
   function renderModificaCanvas() {
     const canvas = document.getElementById('piantinaCanvas');
     if (!canvas || !piantinaEditing) return;
-    const sz = canvasSize();
+    const sz = modalCanvasSize();
     canvas.style.width  = sz.w + 'px';
     canvas.style.height = sz.h + 'px';
     Array.from(canvas.querySelectorAll('.piantina-table')).forEach(el => el.remove());
     const fab = document.getElementById('piantinaFabContainer');
-    (piantinaEditing.tables || []).forEach(t => canvas.insertBefore(makeTableEl(t, true), fab));
+    (piantinaEditing.tables || []).forEach(t => canvas.insertBefore(makeTableEl(t, sz.w, sz.h), fab));
     const used  = (piantinaEditing.tables || []).reduce((s, t) => s + (t.coperti || 0), 0);
     const total = piantinaEditing.copertiTotali || 0;
     const ctr   = document.getElementById('piantinaCopertCounter');
@@ -3160,7 +3238,7 @@ function renderSaleGrid(grid) {
     renderFabMenu();
   }
 
-  // ── FAB ──
+  // ── Modal FAB ──
   function renderFabMenu() {
     fabMenu.innerHTML = '';
     if (!fabOpen || !piantinaEditing) return;
@@ -3168,7 +3246,6 @@ function renderSaleGrid(grid) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'piantina-fab-item';
-      btn.dataset.shape = shape;
       btn.style.animationDelay = (i * 0.06) + 's';
       btn.innerHTML = fabShapeSVG(shape) + '<span class="piantina-fab-item-label">' + (SHAPE_NAME[shape] || shape) + '</span>';
       btn.addEventListener('click', e => {
@@ -3181,10 +3258,8 @@ function renderSaleGrid(grid) {
       fabMenu.appendChild(btn);
     });
   }
-
-  function openFab()  { fabOpen = true;  fabBtn.classList.add('active');  fabMenu.style.display = 'flex'; renderFabMenu(); }
+  function openFab()  { editingMode = 'modal'; fabOpen = true;  fabBtn.classList.add('active');  fabMenu.style.display = 'flex'; renderFabMenu(); }
   function closeFab() { fabOpen = false; fabBtn.classList.remove('active'); fabMenu.style.display = 'none'; fabMenu.innerHTML = ''; }
-
   fabBtn.addEventListener('click', e => { e.stopPropagation(); fabOpen ? closeFab() : openFab(); });
   document.getElementById('piantinaCanvas').addEventListener('click', () => { if (fabOpen) closeFab(); });
 
@@ -3228,8 +3303,7 @@ function renderSaleGrid(grid) {
     });
   })();
 
-  // ── View buttons ──
-  document.getElementById('piantinaViewModificaBtn').addEventListener('click', openModificaPiantina);
+  // ── View: Elimina button ──
   document.getElementById('piantinaViewEliminaBtn').addEventListener('click', () => {
     deletePSrc = 'view'; deletePOv.classList.add('visible');
   });
@@ -3249,10 +3323,11 @@ function renderSaleGrid(grid) {
     });
   })();
 
-  // ── Modifica popup ──
+  // ── Modifica modal (expand view) ──
   function openModificaPiantina() {
     const room = getRoom();
     if (!room || !room.piantina) return;
+    editingMode = 'modal';
     piantinaEditing = JSON.parse(JSON.stringify(room.piantina));
     if (!piantinaEditing.tables) {
       piantinaEditing.tables = piantinaEditing.cells ? migrateOldCells(piantinaEditing.cells) : [];
@@ -3276,7 +3351,7 @@ function renderSaleGrid(grid) {
   });
 
   (function() {
-    function closeModifica() { modificaPOv.classList.remove('visible'); closeFab(); }
+    function closeModifica() { editingMode = 'view'; modificaPOv.classList.remove('visible'); closeFab(); }
     document.getElementById('modificaPiantinaClose').addEventListener('click', closeModifica);
     document.getElementById('modificaPiantinaCancel').addEventListener('click', closeModifica);
     modificaPOv.addEventListener('click', e => { if (e.target === modificaPOv) closeModifica(); });
@@ -3291,30 +3366,33 @@ function renderSaleGrid(grid) {
     });
   })();
 
-  // ── Table options ──
+  // ── Table options popup ──
   (function() {
     function closeCellOpts() { cellOptionsOv.classList.remove('visible'); }
     document.getElementById('cellOptionsClose').addEventListener('click', closeCellOpts);
     cellOptionsOv.addEventListener('click', e => { if (e.target === cellOptionsOv) closeCellOpts(); });
     document.getElementById('cellOptEditInfo').addEventListener('click', () => {
-      const t = piantinaEditing.tables.find(t => t.id === activePTableId);
+      const p = getEditPiantina();
+      const t = p && p.tables.find(t => t.id === activePTableId);
       pendingPForma = t ? t.forma : null;
       closeCellOpts();
       openTableInfo(t || null);
     });
     document.getElementById('cellOptDeleteTable').addEventListener('click', () => {
-      piantinaEditing.tables = piantinaEditing.tables.filter(t => t.id !== activePTableId);
+      const p = getEditPiantina();
+      if (p) p.tables = p.tables.filter(t => t.id !== activePTableId);
       activePTableId = null;
       closeCellOpts();
-      renderModificaCanvas();
+      afterEdit();
     });
     document.getElementById('cellOptChangeShape').addEventListener('click', () => {
       closeCellOpts();
-      openFab();
+      if (editingMode === 'view') openViewFab();
+      else openFab();
     });
   })();
 
-  // ── Table info ──
+  // ── Table info popup ──
   (function() {
     document.getElementById('tableInfoCapMinus').addEventListener('click', () => {
       tableInfoCapEl.value = Math.max(1, (parseInt(tableInfoCapEl.value) || 2) - 1);
@@ -3333,23 +3411,25 @@ function renderSaleGrid(grid) {
       const numerativo = document.getElementById('tableInfoNum').value.trim();
       const coperti    = parseInt(tableInfoCapEl.value) || 2;
       const note       = document.getElementById('tableInfoNote').value.trim();
+      const p = getEditPiantina();
+      if (!p) return;
       if (activePTableId) {
-        const t = piantinaEditing.tables.find(t => t.id === activePTableId);
+        const t = p.tables.find(t => t.id === activePTableId);
         if (t) { t.forma = pendingPForma; t.numerativo = numerativo; t.coperti = coperti; t.note = note; }
       } else {
-        const pos = findFreePos(pendingPForma);
-        piantinaEditing.tables.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), forma: pendingPForma, numerativo, coperti, note, x: pos.x, y: pos.y });
+        const pos = findFreePos(pendingPForma, p);
+        p.tables.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), forma: pendingPForma, numerativo, coperti, note, x: pos.x, y: pos.y });
       }
       pendingPForma = null; activePTableId = null;
       closeTableInfo();
-      renderModificaCanvas();
+      afterEdit();
     });
   })();
 
-  function findFreePos(forma) {
+  function findFreePos(forma, p) {
     const sz  = TABLE_SZ[forma] || TABLE_SZ.quadrato;
-    const csz = canvasSize();
-    const occ = (piantinaEditing.tables || []).map(t => {
+    const csz = editingMode === 'view' ? { w: VIEW_W, h: VIEW_H } : modalCanvasSize();
+    const occ = (p.tables || []).map(t => {
       const s = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
       return { x: t.x * PGRID, y: t.y * PGRID, w: s.w, h: s.h };
     });
