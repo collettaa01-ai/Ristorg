@@ -3438,7 +3438,7 @@ button:focus-visible,
 }
 .piantina-table--edit { cursor: grab; }
 .piantina-table--edit:active,
-.piantina-table--edit.dragging { cursor: grabbing; opacity: 0.82; z-index: 10; }
+.piantina-table--edit.dragging { cursor: grabbing; opacity: 0.82; z-index: 18; }
 .piantina-table-shape { width: 100%; height: 100%; display: block; }
 .piantina-table-badge {
   position: absolute;
@@ -3478,6 +3478,28 @@ button:focus-visible,
 .piantina-table-tooltip strong { display: block; margin-bottom: 2px; }
 .piantina-table:hover .piantina-table-tooltip { opacity: 1; }
 
+/* ── Rotation button (rectangles only) ── */
+.piantina-table-rotate-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(96,165,250,0.6);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.12s;
+  z-index: 6;
+}
+.piantina-table:hover .piantina-table-rotate-btn { opacity: 1; }
+.piantina-table-rotate-btn:hover { background: #dbeafe; }
+
 /* ── Canvas info overlay (top-right, inside canvas) ── */
 .piantina-canvas-info {
   position: absolute;
@@ -3487,7 +3509,7 @@ button:focus-visible,
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
-  z-index: 10;
+  z-index: 25;
   pointer-events: none;
 }
 .piantina-canvas-info-chip {
@@ -3521,7 +3543,7 @@ button:focus-visible,
   box-shadow: 0 1px 4px rgba(0,0,0,0.15);
   transition: border-color 0.15s, transform 0.12s;
 }
-.piantina-merge-btn.active { border-color: #3b82f6; }
+.piantina-merge-btn.active { border-color: #3b82f6; background: #eff6ff; }
 .piantina-merge-btn:hover { transform: translate(-50%, -50%) scale(1.2); }
 
 /* ── Merge popover ── */

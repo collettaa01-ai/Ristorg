@@ -2997,7 +2997,7 @@ function renderSaleGrid(grid) {
   // Piantina (floor plan) management
   // ────────────────────────────────────────────
   const PGRID = 28;
-  const VIEW_MIN_W = 280, VIEW_MIN_H = 160;
+  const VIEW_MIN_W = 500, VIEW_MIN_H = 280;
   const MODAL_W = 860, MODAL_H = 500;
   const MODAL_W_EXP = 1020, MODAL_H_EXP = 620;
   const TABLE_SZ = {
@@ -3007,6 +3007,12 @@ function renderSaleGrid(grid) {
   };
   const SHAPE_NAME = { quadrato: 'Quadrato', rettangolo: 'Rettangolo', rotondo: 'Rotondo' };
   const ALL_SHAPES  = ['quadrato', 'rettangolo', 'rotondo'];
+  // Returns actual pixel size of a table, accounting for rotation
+  function getTableSz(t) {
+    const base = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+    if (t.forma === 'rettangolo' && t.rotated) return { w: base.h, h: base.w };
+    return base;
+  }
 
   function tableSVG(forma, label, sz) {
     const l = escapeHTML(label || '');
@@ -3061,7 +3067,7 @@ function renderSaleGrid(grid) {
     if (!tables || !tables.length) return { w: VIEW_MIN_W, h: VIEW_MIN_H };
     let maxR = 0, maxB = 0;
     tables.forEach(t => {
-      const sz = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+      const sz = getTableSz(t);
       maxR = Math.max(maxR, t.x * PGRID + sz.w);
       maxB = Math.max(maxB, t.y * PGRID + sz.h);
     });
@@ -3090,7 +3096,7 @@ function renderSaleGrid(grid) {
 
   // ── Build a table DOM element ──
   function makeTableEl(t) {
-    const sz  = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+    const sz  = getTableSz(t);
     const div = document.createElement('div');
     div.className = 'piantina-table piantina-table--edit';
     div.dataset.id = t.id;
@@ -3101,6 +3107,26 @@ function renderSaleGrid(grid) {
         '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3 2.7-5 6-5s6 2 6 5"/></svg>' +
         '<span>' + (t.coperti || 0) + '</span>' +
       '</div>';
+    // Rotation button for rectangles
+    if (t.forma === 'rettangolo') {
+      const rotBtn = document.createElement('button');
+      rotBtn.type = 'button';
+      rotBtn.className = 'piantina-table-rotate-btn';
+      rotBtn.title = 'Ruota tavolo';
+      rotBtn.innerHTML = '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6A6 6 0 1 0 13.5 10"/><polyline points="13.5 3 13.5 6 16 6"/></svg>';
+      rotBtn.addEventListener('mousedown', e => e.stopPropagation());
+      rotBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const p = getEditPiantina();
+        if (!p) return;
+        const tData = p.tables.find(td => td.id === t.id);
+        if (!tData) return;
+        tData.rotated = !tData.rotated;
+        if (p.merges) p.merges = p.merges.filter(m => !m.tableIds.includes(tData.id));
+        afterEdit();
+      });
+      div.appendChild(rotBtn);
+    }
     const tip = document.createElement('div');
     tip.className = 'piantina-table-tooltip';
     tip.innerHTML =
@@ -3163,7 +3189,7 @@ function renderSaleGrid(grid) {
         const p = getEditPiantina();
         if (p) {
           const blocked = p.tables.filter(t => t.id !== tableId).some(t => {
-            const ts = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+            const ts = getTableSz(t);
             const tx = t.x * PGRID, ty = t.y * PGRID;
             return nx < tx + ts.w && nx + sz.w > tx && ny < ty + ts.h && ny + sz.h > ty;
           });
@@ -3202,15 +3228,20 @@ function renderSaleGrid(grid) {
       for (let j = i + 1; j < tables.length; j++) {
         const t1 = tables[i], t2 = tables[j];
         if (t1.forma !== t2.forma) continue;
-        const s1 = TABLE_SZ[t1.forma] || TABLE_SZ.quadrato;
-        const s2 = TABLE_SZ[t2.forma] || TABLE_SZ.quadrato;
+        if (t1.forma === 'rotondo') continue; // round tables can't merge
+        const s1 = getTableSz(t1);
+        const s2 = getTableSz(t2);
         const r1 = { x: t1.x * PGRID, y: t1.y * PGRID, w: s1.w, h: s1.h };
         const r2 = { x: t2.x * PGRID, y: t2.y * PGRID, w: s2.w, h: s2.h };
         const gapX = Math.max(0, Math.max(r1.x - (r2.x + r2.w), r2.x - (r1.x + r1.w)));
         const gapY = Math.max(0, Math.max(r1.y - (r2.y + r2.h), r2.y - (r1.y + r1.h)));
         if (gapX > PGRID || gapY > PGRID || (gapX > 0 && gapY > 0)) continue;
-        const cx = (r1.x + r1.w / 2 + r2.x + r2.w / 2) / 2;
+        // Place button at midpoint between the nearest edges, not the center‐to‐center midpoint
+        // For vertical adjacency: offset horizontally to avoid the badge (which is centered)
+        const isVert = gapY >= 0 && gapX === 0;
+        let cx = (r1.x + r1.w / 2 + r2.x + r2.w / 2) / 2;
         const cy = (r1.y + r1.h / 2 + r2.y + r2.h / 2) / 2;
+        if (isVert) cx = Math.min(r1.x, r2.x) + Math.min(r1.w, r2.w) * 0.75; // avoid badge center
         const mergeKey = [t1.id, t2.id].sort().join(':');
         const existing = merges.find(m => [...m.tableIds].sort().join(':') === mergeKey);
         const isActive = existing ? existing.active : false;
@@ -3231,30 +3262,39 @@ function renderSaleGrid(grid) {
     closeMergePopover();
     const canvas = btn.parentElement;
     if (!canvas) return;
-    const cw = parseInt(canvas.style.width) || VIEW_MIN_W;
+    const cw = parseInt(canvas.style.width)  || VIEW_MIN_W;
+    const ch = parseInt(canvas.style.height) || VIEW_MIN_H;
     const mergeKey = [t1Id, t2Id].sort().join(':');
     const existing = (p.merges || []).find(m => [...m.tableIds].sort().join(':') === mergeKey);
     const isActive = existing ? existing.active : false;
     const pop = document.createElement('div');
     pop.className = 'piantina-merge-popover';
     const btnX = parseFloat(btn.style.left), btnY = parseFloat(btn.style.top);
-    const popW = 158;
+    // Horizontal clamping
+    const popW = 172, popH = 44;
     let popLeft = btnX - popW / 2;
-    if (popLeft < 6)              popLeft = 6;
-    if (popLeft + popW > cw - 6)  popLeft = cw - popW - 6;
+    if (popLeft < 6)             popLeft = 6;
+    if (popLeft + popW > cw - 6) popLeft = cw - popW - 6;
+    // Vertical: prefer above button, flip below if too close to top
+    let popTop = btnY - popH - 10;
+    if (popTop < 6) popTop = btnY + 22;
+    if (popTop + popH > ch - 6) popTop = btnY - popH - 10;
+    popTop = Math.max(6, Math.min(ch - popH - 6, popTop));
     pop.style.left = popLeft + 'px';
-    pop.style.top  = (btnY - 50) + 'px';
+    pop.style.top  = popTop  + 'px';
     const sid = 'ms-' + Date.now();
     pop.innerHTML =
       `<label class="merge-toggle" for="${sid}"><input type="checkbox" id="${sid}"${isActive ? ' checked' : ''}><span class="merge-toggle-track"></span></label>` +
-      `<span class="merge-toggle-label${isActive ? ' active' : ''}">${isActive ? 'Uniti' : 'Unisci tavoli'}</span>`;
+      `<span class="merge-toggle-label${isActive ? ' active' : ''}">${isActive ? 'Tavoli Uniti' : 'Unisci tavoli'}</span>`;
+    // Prevent clicks inside popover from closing it
+    pop.addEventListener('click', e => e.stopPropagation());
     pop.querySelector('input').addEventListener('change', function() {
       const na = this.checked;
       if (!p.merges) p.merges = [];
       let m = p.merges.find(m => [...m.tableIds].sort().join(':') === mergeKey);
       if (m) m.active = na; else p.merges.push({ id: Date.now().toString(36), tableIds: [t1Id, t2Id], active: na });
       const lbl = pop.querySelector('.merge-toggle-label');
-      lbl.textContent = na ? 'Uniti' : 'Unisci tavoli';
+      lbl.textContent = na ? 'Tavoli Uniti' : 'Unisci tavoli';
       lbl.className   = 'merge-toggle-label' + (na ? ' active' : '');
       btn.className   = 'piantina-merge-btn' + (na ? ' active' : '');
       btn.innerHTML   = mergeSVG(na);
@@ -3548,7 +3588,7 @@ function renderSaleGrid(grid) {
       ? { w: cur.w + sz.w + PGRID * 4, h: cur.h + sz.h + PGRID * 4 }
       : cur;
     const occ = (p.tables || []).map(t => {
-      const s = TABLE_SZ[t.forma] || TABLE_SZ.quadrato;
+      const s = getTableSz(t);
       return { x: t.x * PGRID, y: t.y * PGRID, w: s.w, h: s.h };
     });
     for (let gy = 0; gy * PGRID + sz.h <= csz.h; gy++) {
