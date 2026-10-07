@@ -2178,12 +2178,13 @@ let editingReservationId = null;
 let selectedMeal = null;
 
 const MEAL_ICONS = {
-  colazione: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V10z"/><path d="M16 12h2a2 2 0 1 1 0 4h-2"/><path d="M8 5V3M12 5V3"/></svg>',
-  pranzo:    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
-  cena:      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+  colazione:  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V10z"/><path d="M16 12h2a2 2 0 1 1 0 4h-2"/><path d="M8 5V3M12 5V3"/></svg>',
+  pranzo:     '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+  aperitivo:  '<img src="assets/icons/cocktail.webp" width="16" height="16" style="object-fit:contain;vertical-align:middle;" alt="Aperitivo">',
+  cena:       '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
 };
-const MEAL_LABELS = { colazione: 'Colazione', pranzo: 'Pranzo', cena: 'Cena' };
-const MEAL_ORDER = ['colazione', 'pranzo', 'cena'];
+const MEAL_LABELS = { colazione: 'Colazione', pranzo: 'Pranzo', aperitivo: 'Aperitivo', cena: 'Cena' };
+const MEAL_ORDER = ['colazione', 'pranzo', 'aperitivo', 'cena'];
 
 function formatReservationDateLabel(d) {
   return `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
@@ -2677,7 +2678,7 @@ function deleteReservation(rid) {
       return;
     }
     searchResults.innerHTML = matches.map(r => {
-      const meal = MEAL_ORDER.includes(r.meal) ? r.meal : 'pranzo';
+      const meal = MEAL_ORDER.includes(r.meal) ? r.meal : MEAL_ORDER[1];
       const meta = (r.time ? r.time + ' • ' : '') + MEAL_LABELS[meal] + ' • ' + (r.pax || 1) + ' pax';
       return '<div class="reservation-search-result" data-rid="' + r.id + '">' +
                '<span class="res-meal-mini">' + MEAL_ICONS[meal] + '</span>' +
