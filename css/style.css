@@ -2301,16 +2301,16 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   height: 6px;
   border-radius: 50%;
 }
-.res-status--confirmed {
+.res-status--pending {
+  background: #fff7ed;
+  color: #c2710c;
+}
+.res-status--pending .status-dot { background: #f59e0b; }
+.res-status--arrived {
   background: #e7f7ec;
   color: #1f8a3c;
 }
-.res-status--confirmed .status-dot { background: #1f8a3c; }
-.res-status--arrived {
-  background: #f0f0f0;
-  color: #555;
-}
-.res-status--arrived .status-dot { background: #888; }
+.res-status--arrived .status-dot { background: #1f8a3c; }
 
 .res-action-cell {
   display: flex;
@@ -2336,11 +2336,12 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 }
 .res-confirm-btn:hover { background: #d4efde; }
 .res-confirm-btn--arrived {
-  background: transparent;
-  color: var(--text-secondary);
-  border-color: #e0e0e0;
-  cursor: default;
+  background: #e7f7ec;
+  color: #1f8a3c;
+  border-color: #c5e8d0;
+  cursor: pointer;
 }
+.res-confirm-btn--arrived:hover { background: #d4efde; }
 
 /* Stats — inline at the right of the filter row.
    All icons are black; sized smaller to match the search/filter row height. */
@@ -2367,6 +2368,7 @@ body.sidebar-collapsed .sidebar-collapse-btn {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
+  overflow: visible;
 }
 .reservation-stats-item .stats-count {
   font-weight: 700;

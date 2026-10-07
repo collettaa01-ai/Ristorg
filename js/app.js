@@ -2197,7 +2197,7 @@ let mealFilter = null; // null | 'colazione' | 'pranzo' | 'cena'
 const RES_ICONS = {
   phoneInline: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
   faUsers:      '<svg viewBox="0 0 640 512" fill="currentColor"><path d="M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192l42.7 0c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0L21.3 320C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7l42.7 0C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3l-213.3 0zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352l117.3 0C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7l-330.7 0c-14.7 0-26.7-11.9-26.7-26.7z"/></svg>',
-  faUserClock:  '<svg viewBox="0 0 640 512" fill="currentColor"><path d="M224 0a128 128 0 1 1 0 256A128 128 0 1 1 224 0zM178.3 304l91.4 0c20.6 0 40.4 3.5 58.8 9.9C323 331 320 349.1 320 368c0 59.5 29.5 112.1 74.8 144L37.8 512C16.9 512 0 495.1 0 474.2C0 379.2 77.2 302 172.2 302l6.1 0zm269.7 64a144 144 0 1 1 288 0 144 144 0 1 1 -288 0zm144-80c-8.8 0-16 7.2-16 16l0 64c0 8.8 7.2 16 16 16l48 0c8.8 0 16-7.2 16-16s-7.2-16-16-16l-32 0 0-48c0-8.8-7.2-16-16-16z"/></svg>',
+  faUserClock:  '<svg viewBox="0 0 640 512" overflow="visible" fill="currentColor"><path d="M224 0a128 128 0 1 1 0 256A128 128 0 1 1 224 0zM178.3 304l91.4 0c20.6 0 40.4 3.5 58.8 9.9C323 331 320 349.1 320 368c0 59.5 29.5 112.1 74.8 144L37.8 512C16.9 512 0 495.1 0 474.2C0 379.2 77.2 302 172.2 302l6.1 0zm269.7 64a144 144 0 1 1 288 0 144 144 0 1 1 -288 0zm144-80c-8.8 0-16 7.2-16 16l0 64c0 8.8 7.2 16 16 16l48 0c8.8 0 16-7.2 16-16s-7.2-16-16-16l-32 0 0-48c0-8.8-7.2-16-16-16z"/></svg>',
   faUserCheck:  '<svg viewBox="0 0 640 512" fill="currentColor"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0zM627.3 211.3c6.2-6.2 6.2-16.4 0-22.6s-16.4-6.2-22.6 0L490.3 302.1 446.6 258.3c-6.2-6.2-16.4-6.2-22.6 0s-6.2 16.4 0 22.6l54.9 54.9c4.5 4.5 11.7 4.5 16.2 0L627.3 211.3z"/></svg>',
   faUser:       '<svg viewBox="0 0 448 512" fill="currentColor"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"/></svg>',
   check:    '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
@@ -2232,10 +2232,10 @@ function renderReservations() {
     b.classList.toggle('active', b.dataset.meal === mealFilter);
   });
 
-  // Stats are computed over the FULL day (not filtered)
-  const totalCount   = dayList.reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
-  const arrivedCount = dayList.filter(r => r.status === 'arrived')
-                              .reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
+  const statsList    = mealFilter ? dayList.filter(r => r.meal === mealFilter) : dayList;
+  const totalCount   = statsList.reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
+  const arrivedCount = statsList.filter(r => r.status === 'arrived')
+                                .reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
   const waitingCount = totalCount - arrivedCount;
 
   if (statsEl) {
@@ -2293,9 +2293,9 @@ function renderReservations() {
       : '';
     const statusHtml = (status === 'arrived')
       ? '<span class="res-status res-status--arrived"><span class="status-dot"></span>Arrivato</span>'
-      : '<span class="res-status res-status--confirmed"><span class="status-dot"></span>Confermata</span>';
+      : '<span class="res-status res-status--pending"><span class="status-dot"></span>In arrivo</span>';
     const confirmBtn = (status === 'arrived')
-      ? '<button class="res-confirm-btn res-confirm-btn--arrived" disabled>Arrivato</button>'
+      ? '<button class="res-confirm-btn res-confirm-btn--arrived" data-action="confirm">' + RES_ICONS.check + 'Arrivato</button>'
       : '<button class="res-confirm-btn" data-action="confirm">' + RES_ICONS.check + 'Conferma arrivo</button>';
 
     html += '<tr data-rid="' + r.id + '">' +
@@ -2333,7 +2333,7 @@ function confirmArrival(rid) {
   const list = reservations[dk] || [];
   const r = list.find(x => x.id === rid);
   if (!r) return;
-  r.status = 'arrived';
+  r.status = (r.status === 'arrived') ? null : 'arrived';
   saveReservations();
   renderReservations();
 }
