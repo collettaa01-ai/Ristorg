@@ -2299,7 +2299,7 @@ function populateResSalaDropdown() {
   rooms.forEach(r => {
     const opt = document.createElement('option');
     opt.value = r.id;
-    opt.textContent = r.nome || r.id;
+    opt.textContent = r.name || r.id;
     sel.appendChild(opt);
   });
   sel.value = selectedSalaId || '';
@@ -2333,7 +2333,7 @@ function openFloorPlanPicker() {
   dayRes.filter(r => r.salaId === selectedSalaId && r.tableId && r.id !== editingReservationId)
         .forEach(r => booked.set(r.tableId, r));
   const canvas = document.getElementById('floorPlanPickerCanvas');
-  document.getElementById('floorPlanPickerTitle').textContent = 'Seleziona tavolo — ' + (room.nome || room.id);
+  document.getElementById('floorPlanPickerTitle').textContent = 'Seleziona tavolo — ' + (room.name || room.id);
   renderResFpCanvas(canvas, p, booked, (t, isBooked) => {
     selectedTavoloId = t.id;
     populateResTavoloDropdown(selectedSalaId);
@@ -2354,7 +2354,7 @@ function renderDailyFloorPlan() {
   if (!room) return;
   const p = room.piantina;
   // Title + date
-  document.getElementById('dailyFloorPlanTitle').textContent = room.nome || room.id;
+  document.getElementById('dailyFloorPlanTitle').textContent = room.name || room.id;
   document.getElementById('dailyFpDateLabel').textContent = formatReservationDateLabel(reservationDate);
   // Meal filters
   const filtersEl = document.getElementById('dailyFpMealFilters');
@@ -2521,15 +2521,21 @@ function renderReservations() {
       : '<button class="res-confirm-btn" data-action="confirm">' + RES_ICONS.check + 'Conferma arrivo</button>';
     const salaRoom = r.salaId ? rooms.find(rm => rm.id === r.salaId) : null;
     const salaCell = salaRoom
-      ? '<button class="res-sala-link" data-action="open-sala" data-sala-id="' + r.salaId + '">' + escapeHTML(salaRoom.nome || salaRoom.id) + '</button>'
+      ? '<button class="res-sala-link" data-action="open-sala" data-sala-id="' + r.salaId + '">' + escapeHTML(salaRoom.name || salaRoom.id) + '</button>'
       : '<span class="res-meta-empty">--</span>';
+    const salaTable = salaRoom && salaRoom.piantina && r.tableId
+      ? (salaRoom.piantina.tables || []).find(t => t.id === r.tableId)
+      : null;
+    const tavoloV = salaTable
+      ? 'T. ' + escapeHTML(salaTable.numerativo || salaTable.id)
+      : (r.table ? escapeHTML(r.table) : '<span class="res-meta-empty">--</span>');
 
     html += '<tr data-rid="' + r.id + '">' +
       '<td><div><span class="res-cell-name"><span class="res-meal-mini">' + RES_ICONS.faUser + '</span>' + escapeHTML(r.name) + phoneIcon + '</span>' + noteLine + '</div></td>' +
       '<td>' + (r.pax || 1) + '</td>' +
       '<td>' + time + '</td>' +
       '<td>' + salaCell + '</td>' +
-      '<td>' + tableV + '</td>' +
+      '<td>' + tavoloV + '</td>' +
       '<td>' + statusHtml + '</td>' +
       '<td><div class="res-action-cell">' +
         confirmBtn +
