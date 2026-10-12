@@ -111,6 +111,20 @@ function saveSale() {
   db.collection('config').doc('sale').set({ data: rooms });
 }
 
+// ── Daily piantine (per sala/date/meal, independent from room.piantina) ──
+let dailyPiantine = {};
+function saveDailyPiantina() {
+  db.collection('config').doc('dailyPiantine').set({ data: dailyPiantine });
+}
+function getDailyP(salaId, dk, meal) {
+  return (dailyPiantine[salaId] && dailyPiantine[salaId][dk] && dailyPiantine[salaId][dk][meal]) || null;
+}
+function setDailyP(salaId, dk, meal, p) {
+  if (!dailyPiantine[salaId]) dailyPiantine[salaId] = {};
+  if (!dailyPiantine[salaId][dk]) dailyPiantine[salaId][dk] = {};
+  dailyPiantine[salaId][dk][meal] = p;
+}
+
 // ═══════════════════════════════════
 // Firestore real-time listeners
 // ═══════════════════════════════════
@@ -229,6 +243,14 @@ function initRealtimeSync() {
     const saleGrid = document.getElementById('saleGrid');
     if (saleGrid) renderSaleGrid(saleGrid);
   }, err => { console.error('Sale sync error:', err); });
+
+  // Daily piantine (per sala/date/meal)
+  db.collection('config').doc('dailyPiantine').onSnapshot(doc => {
+    dailyPiantine = (doc.exists && doc.data().data) ? doc.data().data : {};
+    if (document.getElementById('dailyFloorPlanOverlay').classList.contains('visible')) {
+      renderDailyFloorPlan();
+    }
+  }, err => { console.error('Daily piantine sync error:', err); });
 }
 
 // ═══════════════════════════════════
@@ -2343,16 +2365,18 @@ function openFloorPlanPicker() {
 }
 
 // ── Daily floor plan (from Prenotazioni sala link) ──
-function openDailyFloorPlan(salaId) {
+function openDailyFloorPlan(salaId, meal) {
   dailyFpSalaId     = salaId;
-  dailyFpMealFilter = 'colazione';
+  dailyFpMealFilter = (meal && MEAL_ORDER.includes(meal)) ? meal : 'colazione';
   renderDailyFloorPlan();
   document.getElementById('dailyFloorPlanOverlay').classList.add('visible');
 }
 function renderDailyFloorPlan() {
   const room = rooms.find(r => r.id === dailyFpSalaId);
   if (!room) return;
-  const p = room.piantina;
+  // Use daily piantina if exists for this sala/date/meal, otherwise fall back to base
+  const dk = dateKey(reservationDate);
+  const p = getDailyP(dailyFpSalaId, dk, dailyFpMealFilter) || room.piantina;
   // Title + date
   document.getElementById('dailyFloorPlanTitle').textContent = room.name || room.id;
   document.getElementById('dailyFpDateLabel').textContent = formatReservationDateLabel(reservationDate);
@@ -2370,7 +2394,6 @@ function renderDailyFloorPlan() {
     });
   });
   // Build booked table map for the selected meal
-  const dk = dateKey(reservationDate);
   const dayRes = (reservations[dk] || []).filter(r => r.salaId === dailyFpSalaId && r.meal === dailyFpMealFilter && r.tableId);
   const booked = new Map();
   dayRes.forEach(r => booked.set(r.tableId, r));
@@ -2521,7 +2544,7 @@ function renderReservations() {
       : '<button class="res-confirm-btn" data-action="confirm">' + RES_ICONS.check + 'Conferma arrivo</button>';
     const salaRoom = r.salaId ? rooms.find(rm => rm.id === r.salaId) : null;
     const salaCell = salaRoom
-      ? '<button class="res-sala-link" data-action="open-sala" data-sala-id="' + r.salaId + '">' + escapeHTML(salaRoom.name || salaRoom.id) + '</button>'
+      ? '<button class="res-sala-link" data-action="open-sala" data-sala-id="' + r.salaId + '" data-meal="' + escapeHTML(r.meal || '') + '">' + escapeHTML(salaRoom.name || salaRoom.id) + '</button>'
       : '<span class="res-meta-empty">--</span>';
     const salaTable = salaRoom && salaRoom.piantina && r.tableId
       ? (salaRoom.piantina.tables || []).find(t => t.id === r.tableId)
@@ -2556,7 +2579,7 @@ function renderReservations() {
         if (action === 'edit')      openReservationModal(rid);
         if (action === 'delete')    deleteReservation(rid);
         if (action === 'confirm')   confirmArrival(rid);
-        if (action === 'open-sala') openDailyFloorPlan(btn.dataset.salaId);
+        if (action === 'open-sala') openDailyFloorPlan(btn.dataset.salaId, btn.dataset.meal);
       });
     });
   });
@@ -2977,6 +3000,16 @@ function deleteReservation(rid) {
   document.getElementById('dailyFloorPlanOverlay').addEventListener('click', e => {
     if (e.target.id === 'dailyFloorPlanOverlay') document.getElementById('dailyFloorPlanOverlay').classList.remove('visible');
   });
+  document.getElementById('dailyFpEditBtn').addEventListener('click', () => {
+    if (!dailyFpSalaId) return;
+    const room = rooms.find(r => r.id === dailyFpSalaId);
+    if (!room) return;
+    const dk = dateKey(reservationDate);
+    const dateLabel = formatReservationDateLabel(reservationDate);
+    const mealLabel = MEAL_LABELS[dailyFpMealFilter] || dailyFpMealFilter;
+    document.getElementById('dailyFloorPlanOverlay').classList.remove('visible');
+    window.openDailyPiantinaInGS(dailyFpSalaId, dk, dailyFpMealFilter, dateLabel, mealLabel);
+  });
 
   // View reservation from floor plan
   document.getElementById('viewResFloorClose').addEventListener('click', () => {
@@ -3222,6 +3255,7 @@ function renderSaleGrid(grid) {
   }
 
   function closeSalaDetail() {
+    dailyPiantinaCtx = null;
     currentSalaId = null;
     salaDetail.style.display  = 'none';
     saleGrid.style.display    = '';
@@ -3335,6 +3369,7 @@ function renderSaleGrid(grid) {
   let isExpanded         = false;
   let deletePSrc         = null;
   let activeMergePopover = null;
+  let dailyPiantinaCtx   = null; // { salaId, dk, meal, dateLabel, mealLabel } | null
 
   const modificaPOv    = document.getElementById('modificaPiantinaOverlay');
   const tableInfoOv    = document.getElementById('tableInfoOverlay');
@@ -3370,11 +3405,19 @@ function renderSaleGrid(grid) {
   }
 
   function getEditPiantina() {
+    if (dailyPiantinaCtx && editingMode === 'view') {
+      return getDailyP(dailyPiantinaCtx.salaId, dailyPiantinaCtx.dk, dailyPiantinaCtx.meal);
+    }
     return editingMode === 'view' ? (getRoom() && getRoom().piantina) : piantinaEditing;
   }
   function afterEdit() {
-    if (editingMode === 'view') { saveSale(); renderPiantinaView(); }
-    else renderModificaCanvas();
+    if (editingMode === 'view') {
+      if (dailyPiantinaCtx) saveDailyPiantina();
+      else saveSale();
+      renderPiantinaView();
+    } else {
+      renderModificaCanvas();
+    }
   }
 
   function migrateOldCells(cells) {
@@ -3786,8 +3829,40 @@ function renderSaleGrid(grid) {
     const addBtn     = document.getElementById('salaPiantinaAddBtn');
     const viewArea   = document.getElementById('piantinaViewArea');
     const viewCanvas = document.getElementById('piantinaViewCanvas');
+    const eliminaBtn = document.getElementById('piantinaViewEliminaBtn');
+    const banner     = document.getElementById('dailyModeBanner');
     if (!addBtn || !viewArea || !viewCanvas) return;
-    const room = getRoom(), p = room && room.piantina;
+
+    // Daily mode banner and elimina visibility
+    if (banner) {
+      if (dailyPiantinaCtx) {
+        banner.style.display = '';
+        banner.className = 'daily-mode-banner';
+        banner.innerHTML =
+          '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+          '<span class="daily-mode-banner-text">' + escapeHTML(dailyPiantinaCtx.dateLabel) + ' · ' + escapeHTML(dailyPiantinaCtx.mealLabel) + ' — Piantina giornaliera</span>' +
+          '<button class="daily-mode-back-btn" id="dailyModeBackBtn">' +
+            '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>' +
+            'Torna alle prenotazioni' +
+          '</button>';
+        document.getElementById('dailyModeBackBtn').addEventListener('click', () => {
+          dailyPiantinaCtx = null;
+          closeSalaDetail();
+          document.querySelector('.nav-item[data-section="prenotazioni"]').click();
+        });
+      } else {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+      }
+    }
+    if (eliminaBtn) eliminaBtn.style.display = dailyPiantinaCtx ? 'none' : '';
+
+    // Get piantina: daily or base
+    const room = getRoom();
+    const p = dailyPiantinaCtx
+      ? getDailyP(dailyPiantinaCtx.salaId, dailyPiantinaCtx.dk, dailyPiantinaCtx.meal)
+      : (room && room.piantina);
+
     if (p) {
       addBtn.disabled = true; addBtn.classList.add('disabled');
       if (!p.tables) { p.tables = p.cells ? migrateOldCells(p.cells) : []; delete p.cells; }
@@ -3889,6 +3964,16 @@ function renderSaleGrid(grid) {
   // ── Creation: directly create piantina on "+" click ──
   document.getElementById('salaPiantinaAddBtn').addEventListener('click', () => {
     if (document.getElementById('salaPiantinaAddBtn').disabled) return;
+    if (dailyPiantinaCtx) {
+      const { salaId, dk, meal } = dailyPiantinaCtx;
+      const baseRoom = rooms.find(r => r.id === salaId);
+      const base = baseRoom && baseRoom.piantina;
+      setDailyP(salaId, dk, meal, base
+        ? JSON.parse(JSON.stringify(base))
+        : { forma: 'rettangolare', formeTaboli: ALL_SHAPES.slice(), copertiTotali: 0, tables: [], merges: [], canvasW: VIEW_MIN_W, canvasH: VIEW_MIN_H });
+      saveDailyPiantina(); renderPiantinaView();
+      return;
+    }
     const idx = rooms.findIndex(r => r.id === currentSalaId);
     if (idx === -1) return;
     rooms[idx].piantina = {
@@ -3917,10 +4002,12 @@ function renderSaleGrid(grid) {
 
   // ── Modifica modal ──
   function openModificaPiantina() {
-    const room = getRoom();
-    if (!room || !room.piantina) return;
+    const basePiantina = dailyPiantinaCtx
+      ? getDailyP(dailyPiantinaCtx.salaId, dailyPiantinaCtx.dk, dailyPiantinaCtx.meal)
+      : (getRoom() && getRoom().piantina);
+    if (!basePiantina) return;
     editingMode = 'modal';
-    piantinaEditing = JSON.parse(JSON.stringify(room.piantina));
+    piantinaEditing = JSON.parse(JSON.stringify(basePiantina));
     if (!piantinaEditing.tables) { piantinaEditing.tables = piantinaEditing.cells ? migrateOldCells(piantinaEditing.cells) : []; delete piantinaEditing.cells; }
     if (!piantinaEditing.merges) piantinaEditing.merges = [];
     activePTableId = null; pendingPForma = null; fabOpen = false; isExpanded = false;
@@ -3943,8 +4030,14 @@ function renderSaleGrid(grid) {
     document.getElementById('modificaPiantinaCancel').addEventListener('click', closeModifica);
     modificaPOv.addEventListener('click', e => { if (e.target === modificaPOv) closeModifica(); });
     document.getElementById('modificaPiantinaSalva').addEventListener('click', () => {
-      const idx = rooms.findIndex(r => r.id === currentSalaId);
-      if (idx !== -1) { rooms[idx].piantina = JSON.parse(JSON.stringify(piantinaEditing)); saveSale(); }
+      if (dailyPiantinaCtx) {
+        const { salaId, dk, meal } = dailyPiantinaCtx;
+        setDailyP(salaId, dk, meal, JSON.parse(JSON.stringify(piantinaEditing)));
+        saveDailyPiantina();
+      } else {
+        const idx = rooms.findIndex(r => r.id === currentSalaId);
+        if (idx !== -1) { rooms[idx].piantina = JSON.parse(JSON.stringify(piantinaEditing)); saveSale(); }
+      }
       closeModifica(); renderPiantinaView();
     });
     document.getElementById('modificaPiantinaElimina').addEventListener('click', () => { deletePSrc = 'modifica'; deletePOv.classList.add('visible'); });
@@ -4063,6 +4156,24 @@ function renderSaleGrid(grid) {
     document.getElementById('tableInfoNote').value = existing ? (existing.note       || '') : '';
     tableInfoOv.classList.add('visible');
   }
+
+  // Expose: called from Prenotazioni when user clicks "Modifica layout" in daily floor plan
+  window.openDailyPiantinaInGS = function(salaId, dk, meal, dateLabel, mealLabel) {
+    // Initialize daily piantina from base room piantina if it doesn't exist yet
+    if (!getDailyP(salaId, dk, meal)) {
+      const baseRoom = rooms.find(r => r.id === salaId);
+      const base = baseRoom && baseRoom.piantina;
+      if (base) {
+        setDailyP(salaId, dk, meal, JSON.parse(JSON.stringify(base)));
+        saveDailyPiantina();
+      }
+      // If room has no piantina, the "Crea piantina" button will allow creating one
+    }
+    dailyPiantinaCtx = { salaId, dk, meal, dateLabel, mealLabel };
+    // Navigate to Gestione sale and open sala detail
+    document.querySelector('.nav-item[data-section="sale"]').click();
+    setTimeout(() => openSalaDetail(salaId), 50);
+  };
 
 })();
 

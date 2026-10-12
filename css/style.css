@@ -2343,6 +2343,52 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 }
 .res-confirm-btn--arrived:hover { background: #d4efde; }
 
+/* Daily piantina mode banner in Gestione sale sala detail */
+.daily-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #fffbeb;
+  border: 1.5px solid #fcd34d;
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+  font-size: var(--text-sm);
+  color: #92400e;
+  flex-wrap: wrap;
+}
+.daily-mode-banner svg { flex-shrink: 0; color: #d97706; }
+.daily-mode-banner-text { flex: 1; font-weight: 500; }
+.daily-mode-back-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1.5px solid #d97706;
+  border-radius: 20px;
+  background: #fff;
+  color: #92400e;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.daily-mode-back-btn:hover { background: #fcd34d; color: #78350f; }
+
+/* Daily floor plan edit button */
+.btn--sm {
+  padding: 5px 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.daily-fp-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
 /* Sala link in reservation table */
 .res-sala-link {
   background: none;
