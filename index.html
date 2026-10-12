@@ -841,40 +841,6 @@
     </div>
   </div>
 
-  <!-- Crea piantina popup -->
-  <div class="modal-overlay" id="creaPiantinaOverlay">
-    <div class="modal modal--reservation" style="max-width:480px;">
-      <div class="modal-header">
-        <h3>Creazione della piantina</h3>
-        <button class="modal-close" id="creaPiantinaClose">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="res-box">
-          <span class="res-box-label">Forma della sala</span>
-          <select id="piantinaForma" class="piantina-forma-select">
-            <option value="">Seleziona la forma</option>
-            <option value="quadrata">Quadrata</option>
-            <option value="rettangolare">Rettangolare</option>
-          </select>
-        </div>
-        <div class="res-box" style="margin-top:12px;">
-          <span class="res-box-label">Coperti disponibili</span>
-          <div class="res-pax-control">
-            <button type="button" class="res-pax-btn" id="piantinaCopertMinus">−</button>
-            <input type="text" id="piantinaCopert" class="res-pax-input" value="30" inputmode="numeric">
-            <button type="button" class="res-pax-btn" id="piantinaCopertPlus">+</button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn--secondary" id="creaPiantinaCancel">Annulla</button>
-        <button class="btn btn--primary" id="creaPiantinaConfirm">Conferma</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Modifica piantina popup -->
   <div class="modal-overlay" id="modificaPiantinaOverlay">
     <div class="modal modal--piantina-modifica">
