@@ -630,6 +630,29 @@
           </div>
         </div>
 
+        <!-- BOX 5b: Seleziona sala + Seleziona tavolo -->
+        <div class="res-row mt-12">
+          <div class="res-box res-box--half">
+            <span class="res-box-label">Seleziona sala</span>
+            <select id="resSalaSelect" class="res-form-select">
+              <option value="">Nessuna</option>
+            </select>
+          </div>
+          <div class="res-box res-box--half">
+            <span class="res-box-label">Seleziona tavolo</span>
+            <select id="resTavoloSelect" class="res-form-select">
+              <option value="">Nessuno</option>
+            </select>
+          </div>
+        </div>
+        <!-- BOX 5c: Scegli tavolo dalla piantina -->
+        <div class="res-box mt-8">
+          <button type="button" class="res-piantina-pick-btn" id="resScegliPiantinaBtn">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17 14v7M14 17h7"/></svg>
+            Scegli tavolo dalla piantina
+          </button>
+        </div>
+
         <!-- BOX 6: Note -->
         <div class="res-box mt-12">
           <span class="res-box-label">Note</span>
@@ -971,6 +994,65 @@
       <div class="modal-footer">
         <button class="btn btn--secondary" id="deletePiantinaCancel">Annulla</button>
         <button class="btn btn--danger" id="deletePiantinaConfirm">Conferma</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floor plan picker (select table in reservation modal) -->
+  <div class="modal-overlay" id="floorPlanPickerOverlay">
+    <div class="modal modal--floor-picker">
+      <div class="modal-header">
+        <h3 id="floorPlanPickerTitle">Seleziona tavolo</h3>
+        <button class="modal-close" id="floorPlanPickerClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body floor-picker-body">
+        <p class="floor-picker-hint">Clicca su un tavolo per selezionarlo</p>
+        <div class="floor-picker-scroll">
+          <div class="piantina-view-canvas floor-picker-canvas" id="floorPlanPickerCanvas"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily floor plan (from Prenotazioni sala link) -->
+  <div class="modal-overlay" id="dailyFloorPlanOverlay">
+    <div class="modal modal--daily-fp">
+      <div class="modal-header daily-fp-header">
+        <div class="daily-fp-header-left">
+          <h3 id="dailyFloorPlanTitle">Piantina</h3>
+          <div class="daily-fp-date-label" id="dailyFpDateLabel"></div>
+        </div>
+        <div class="daily-fp-header-right">
+          <div class="daily-fp-meal-filters" id="dailyFpMealFilters"></div>
+          <div class="daily-fp-stats" id="dailyFpStats"></div>
+          <button class="modal-close" id="dailyFloorPlanClose">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body daily-fp-body">
+        <div class="daily-fp-scroll">
+          <div class="piantina-view-canvas" id="dailyFloorPlanCanvas"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View reservation details from daily floor plan table click -->
+  <div class="modal-overlay modal-overlay--top" id="viewResFloorOverlay">
+    <div class="modal modal--view-res-floor">
+      <div class="modal-header">
+        <h3>Prenotazione</h3>
+        <button class="modal-close" id="viewResFloorClose">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="viewResFloorBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn--secondary" id="viewResFloorClose2">Chiudi</button>
+        <button class="btn btn--primary" id="viewResFloorEditBtn">Modifica</button>
       </div>
     </div>
   </div>

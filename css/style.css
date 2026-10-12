@@ -2343,6 +2343,165 @@ body.sidebar-collapsed .sidebar-collapse-btn {
 }
 .res-confirm-btn--arrived:hover { background: #d4efde; }
 
+/* Sala link in reservation table */
+.res-sala-link {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition);
+  white-space: nowrap;
+}
+.res-sala-link:hover { background: rgba(59,130,246,0.08); }
+
+/* Reservation form — sala/tavolo selects */
+.res-form-select {
+  width: 100%;
+  padding: 8px 32px 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 11px;
+}
+.res-form-select:focus { outline: none; border-color: var(--accent); }
+
+/* Scegli tavolo dalla piantina button */
+.res-piantina-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.res-piantina-pick-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.04); }
+.res-piantina-pick-btn svg { flex-shrink: 0; }
+
+/* Floor plan picker modal */
+.modal--floor-picker {
+  max-width: 720px;
+  width: 96vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.floor-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  padding-bottom: 4px;
+}
+.floor-picker-hint {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+.floor-picker-scroll {
+  overflow: auto;
+  flex: 1;
+  border-radius: 8px;
+}
+.floor-picker-canvas {
+  overflow: visible !important;
+}
+
+/* Daily floor plan modal */
+.modal--daily-fp {
+  max-width: 800px;
+  width: 96vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+.daily-fp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.daily-fp-header-left { display: flex; flex-direction: column; gap: 3px; }
+.daily-fp-date-label { font-size: var(--text-sm); color: var(--text-secondary); }
+.daily-fp-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.daily-fp-meal-filters { display: flex; gap: 4px; flex-wrap: wrap; }
+.daily-fp-meal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+.daily-fp-meal-btn:hover { border-color: var(--accent); color: var(--accent); }
+.daily-fp-meal-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.daily-fp-stats {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.daily-fp-body { overflow: hidden; display: flex; flex-direction: column; padding-bottom: 4px; }
+.daily-fp-scroll { overflow: auto; flex: 1; border-radius: 8px; }
+
+/* Read-only piantina table (floor plan picker + daily floor plan) */
+.piantina-table--fp-readonly {
+  position: absolute;
+  pointer-events: all;
+}
+.piantina-table--fp-readonly .piantina-table-shape {
+  width: 100%;
+  height: 100%;
+}
+.piantina-table--fp-booked .piantina-table-shape { filter: drop-shadow(0 0 4px rgba(30,82,160,0.35)); }
+
+/* View reservation from floor plan */
+.modal--view-res-floor {
+  max-width: 400px;
+  width: 94vw;
+}
+.res-view-info { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.res-view-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.res-view-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+.res-view-info-row > span:last-child {
+  font-size: var(--text-sm);
+  color: var(--text);
+  font-weight: 500;
+}
+
 /* Stats — inline at the right of the filter row.
    All icons are black; sized smaller to match the search/filter row height. */
 .reservation-stats {

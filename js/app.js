@@ -2193,6 +2193,226 @@ function formatReservationDateLabel(d) {
 // Filter state (only for current day, reset on day change)
 let mealFilter = null; // null | 'colazione' | 'pranzo' | 'cena'
 
+// Sala/tavolo selection state (reservation modal)
+let selectedSalaId   = null;
+let selectedTavoloId = null;
+
+// Daily floor plan state
+let dailyFpSalaId      = null;
+let dailyFpMealFilter  = 'colazione';
+let viewingResFloorId  = null;
+
+// ── Floor plan rendering helpers (for Prenotazioni views) ──
+const RES_FP_PGRID = 28;
+const RES_FP_TABLE_SZ = {
+  quadrato:   { w: 56,  h: 56 },
+  rettangolo: { w: 84,  h: 56 },
+  rotondo:    { w: 56,  h: 56 }
+};
+function resFpGetTableSz(t) {
+  const base = RES_FP_TABLE_SZ[t.forma] || RES_FP_TABLE_SZ.quadrato;
+  if (t.forma === 'rettangolo' && t.rotated) return { w: base.h, h: base.w };
+  return base;
+}
+function resFpTableSVG(forma, label, sz, booked) {
+  const l = escapeHTML(label || '');
+  const { w, h } = sz;
+  const fs = Math.max(11, Math.round(Math.min(w, h) * 0.26));
+  const fill = booked ? 'rgba(30,82,160,0.72)' : 'rgba(96,165,250,0.48)';
+  const tf   = booked ? '#e8f0ff' : '#1e3a5f';
+  if (forma === 'rotondo')
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><circle cx="${w/2}" cy="${h/2}" r="${Math.min(w,h)/2-4}" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%"><rect x="4" y="4" width="${w-8}" height="${h-8}" rx="8" fill="${fill}"/><text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tf}" font-size="${fs}" font-weight="700">${l}</text></svg>`;
+}
+function resFpViewCanvasSize(tables, p) {
+  if (p && p.canvasW && p.canvasH) {
+    return { w: Math.max(500, p.canvasW), h: Math.max(280, p.canvasH) };
+  }
+  if (!tables || !tables.length) return { w: 500, h: 280 };
+  let maxR = 0, maxB = 0;
+  tables.forEach(t => {
+    const sz = resFpGetTableSz(t);
+    maxR = Math.max(maxR, t.x * RES_FP_PGRID + sz.w);
+    maxB = Math.max(maxB, t.y * RES_FP_PGRID + sz.h);
+  });
+  const PAD = 60;
+  return {
+    w: Math.max(500, Math.ceil((maxR + PAD) / RES_FP_PGRID) * RES_FP_PGRID),
+    h: Math.max(280, Math.ceil((maxB + PAD) / RES_FP_PGRID) * RES_FP_PGRID)
+  };
+}
+function renderResFpCanvas(canvas, p, bookedTableIds, onTableClick) {
+  canvas.innerHTML = '';
+  if (!p || !p.tables) return;
+  const { w, h } = resFpViewCanvasSize(p.tables, p);
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  p.tables.forEach(t => {
+    const sz     = resFpGetTableSz(t);
+    const booked = bookedTableIds && bookedTableIds.has(t.id);
+    const div = document.createElement('div');
+    div.className = 'piantina-table piantina-table--fp-readonly' + (booked ? ' piantina-table--fp-booked' : '');
+    div.dataset.id = t.id;
+    div.style.cssText = `left:${t.x * RES_FP_PGRID}px;top:${t.y * RES_FP_PGRID}px;width:${sz.w}px;height:${sz.h}px;cursor:${onTableClick ? 'pointer' : 'default'}`;
+    div.innerHTML = '<div class="piantina-table-shape">' + resFpTableSVG(t.forma, t.numerativo, sz, booked) + '</div>';
+    // Tooltip
+    const tip = document.createElement('div');
+    tip.className = 'piantina-table-tooltip';
+    const bookedRes = bookedTableIds && bookedTableIds.get ? bookedTableIds.get(t.id) : null;
+    if (booked && bookedRes) {
+      tip.innerHTML = '<strong>' + escapeHTML(bookedRes.name || '') + '</strong>' +
+        (bookedRes.time ? bookedRes.time + ' • ' : '') + (bookedRes.pax || 1) + ' pax';
+    } else {
+      tip.innerHTML = '<strong>Tavolo ' + escapeHTML(t.numerativo || '—') + '</strong>Libero';
+    }
+    div.appendChild(tip);
+    div.addEventListener('mouseenter', () => {
+      const cw = parseInt(canvas.style.width)  || 500;
+      const tx = parseInt(div.style.left) || 0;
+      const ty = parseInt(div.style.top)  || 0;
+      const tipW = 140, tipH = 50;
+      let lc = sz.w / 2;
+      if (tx + lc - tipW / 2 < 6)          lc = tipW / 2 - tx + 6;
+      else if (tx + lc + tipW / 2 > cw - 6) lc = cw - tx - tipW / 2 - 6;
+      tip.style.left      = lc + 'px';
+      tip.style.transform = 'translateX(-50%)';
+      if (ty >= tipH + 16) {
+        tip.style.bottom = (sz.h + 8) + 'px';
+        tip.style.top    = 'auto';
+      } else {
+        tip.style.top    = (sz.h + 8) + 'px';
+        tip.style.bottom = 'auto';
+      }
+    });
+    if (onTableClick) {
+      div.addEventListener('click', () => onTableClick(t, booked, bookedRes));
+    }
+    canvas.appendChild(div);
+  });
+}
+
+// ── Populate sala/tavolo dropdowns ──
+function populateResSalaDropdown() {
+  const sel = document.getElementById('resSalaSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Nessuna</option>';
+  rooms.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = r.nome || r.id;
+    sel.appendChild(opt);
+  });
+  sel.value = selectedSalaId || '';
+}
+function populateResTavoloDropdown(salaId) {
+  const sel = document.getElementById('resTavoloSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Nessuno</option>';
+  if (!salaId) { sel.value = ''; return; }
+  const room = rooms.find(r => r.id === salaId);
+  if (!room || !room.piantina || !room.piantina.tables) { sel.value = ''; return; }
+  room.piantina.tables.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = 'Tavolo ' + (t.numerativo || t.id) + (t.coperti ? ' (' + t.coperti + ' cop.)' : '');
+    sel.appendChild(opt);
+  });
+  sel.value = selectedTavoloId || '';
+}
+
+// ── Floor plan picker (modal) ──
+function openFloorPlanPicker() {
+  if (!selectedSalaId) { showToast('Seleziona prima una sala'); return; }
+  const room = rooms.find(r => r.id === selectedSalaId);
+  if (!room || !room.piantina) { showToast('La sala non ha una piantina'); return; }
+  const p = room.piantina;
+  if (!p.tables) p.tables = [];
+  const dk = reservationModalDate ? dateKey(reservationModalDate) : dateKey(reservationDate);
+  const dayRes = reservations[dk] || [];
+  const booked = new Map();
+  dayRes.filter(r => r.salaId === selectedSalaId && r.tableId && r.id !== editingReservationId)
+        .forEach(r => booked.set(r.tableId, r));
+  const canvas = document.getElementById('floorPlanPickerCanvas');
+  document.getElementById('floorPlanPickerTitle').textContent = 'Seleziona tavolo — ' + (room.nome || room.id);
+  renderResFpCanvas(canvas, p, booked, (t, isBooked) => {
+    selectedTavoloId = t.id;
+    populateResTavoloDropdown(selectedSalaId);
+    document.getElementById('floorPlanPickerOverlay').classList.remove('visible');
+  });
+  document.getElementById('floorPlanPickerOverlay').classList.add('visible');
+}
+
+// ── Daily floor plan (from Prenotazioni sala link) ──
+function openDailyFloorPlan(salaId) {
+  dailyFpSalaId     = salaId;
+  dailyFpMealFilter = 'colazione';
+  renderDailyFloorPlan();
+  document.getElementById('dailyFloorPlanOverlay').classList.add('visible');
+}
+function renderDailyFloorPlan() {
+  const room = rooms.find(r => r.id === dailyFpSalaId);
+  if (!room) return;
+  const p = room.piantina;
+  // Title + date
+  document.getElementById('dailyFloorPlanTitle').textContent = room.nome || room.id;
+  document.getElementById('dailyFpDateLabel').textContent = formatReservationDateLabel(reservationDate);
+  // Meal filters
+  const filtersEl = document.getElementById('dailyFpMealFilters');
+  filtersEl.innerHTML = MEAL_ORDER.map(m =>
+    '<button class="daily-fp-meal-btn' + (m === dailyFpMealFilter ? ' active' : '') + '" data-meal="' + m + '">' +
+      MEAL_ICONS[m] + '<span>' + MEAL_LABELS[m] + '</span>' +
+    '</button>'
+  ).join('');
+  filtersEl.querySelectorAll('.daily-fp-meal-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dailyFpMealFilter = btn.dataset.meal;
+      renderDailyFloorPlan();
+    });
+  });
+  // Build booked table map for the selected meal
+  const dk = dateKey(reservationDate);
+  const dayRes = (reservations[dk] || []).filter(r => r.salaId === dailyFpSalaId && r.meal === dailyFpMealFilter && r.tableId);
+  const booked = new Map();
+  dayRes.forEach(r => booked.set(r.tableId, r));
+  // Stats
+  const statsEl = document.getElementById('dailyFpStats');
+  if (statsEl) {
+    const totalPax  = dayRes.reduce((s, r) => s + (parseInt(r.pax) || 0), 0);
+    const bookedCnt = dayRes.length;
+    statsEl.textContent = bookedCnt + (bookedCnt === 1 ? ' pren.' : ' pren.') + ' · ' + totalPax + ' pax';
+  }
+  // Canvas
+  const canvas = document.getElementById('dailyFloorPlanCanvas');
+  if (!p || !p.tables) {
+    canvas.innerHTML = '<div class="floor-picker-hint">Nessuna piantina disponibile</div>';
+    return;
+  }
+  renderResFpCanvas(canvas, p, booked, (t, isBooked, bookedRes) => {
+    if (isBooked && bookedRes) showResFromFloor(bookedRes.id);
+  });
+}
+function showResFromFloor(rid) {
+  viewingResFloorId = rid;
+  const dk = dateKey(reservationDate);
+  const r = (reservations[dk] || []).find(x => x.id === rid);
+  if (!r) return;
+  const room = rooms.find(rm => rm.id === r.salaId);
+  const tName = room && room.piantina ? (room.piantina.tables || []).find(t => t.id === r.tableId) : null;
+  const body = document.getElementById('viewResFloorBody');
+  body.innerHTML =
+    '<div class="res-view-info">' +
+      '<div class="res-view-info-row"><span class="res-view-label">Nome</span><span>' + escapeHTML(r.name || '') + '</span></div>' +
+      '<div class="res-view-info-row"><span class="res-view-label">Coperti</span><span>' + (r.pax || 1) + '</span></div>' +
+      (r.time ? '<div class="res-view-info-row"><span class="res-view-label">Ora</span><span>' + escapeHTML(r.time) + '</span></div>' : '') +
+      '<div class="res-view-info-row"><span class="res-view-label">Consumazione</span><span>' + (MEAL_LABELS[r.meal] || r.meal) + '</span></div>' +
+      (tName ? '<div class="res-view-info-row"><span class="res-view-label">Tavolo</span><span>Tavolo ' + escapeHTML(tName.numerativo || tName.id) + '</span></div>' : '') +
+      (r.phone ? '<div class="res-view-info-row"><span class="res-view-label">Telefono</span><span>' + escapeHTML(r.phone) + '</span></div>' : '') +
+      (r.notes ? '<div class="res-view-info-row"><span class="res-view-label">Note</span><span>' + escapeHTML(r.notes) + '</span></div>' : '') +
+      '<div class="res-view-info-row"><span class="res-view-label">Stato</span><span>' + (r.status === 'arrived' ? 'Arrivato' : 'In arrivo') + '</span></div>' +
+    '</div>';
+  document.getElementById('viewResFloorOverlay').classList.add('visible');
+}
+
 // Icons used inside reservation cells / stats / actions.
 // Stats use Font Awesome 6 Free solid: fa-users, fa-user-clock, fa-user-check.
 const RES_ICONS = {
@@ -2276,6 +2496,7 @@ function renderReservations() {
       '<th>Nome</th>' +
       '<th>Numero</th>' +
       '<th>Ora</th>' +
+      '<th>Sala</th>' +
       '<th>Tavolo</th>' +
       '<th>Stato</th>' +
       '<th style="text-align:right">Azioni</th>' +
@@ -2298,11 +2519,16 @@ function renderReservations() {
     const confirmBtn = (status === 'arrived')
       ? '<button class="res-confirm-btn res-confirm-btn--arrived" data-action="confirm">' + RES_ICONS.check + 'Arrivato</button>'
       : '<button class="res-confirm-btn" data-action="confirm">' + RES_ICONS.check + 'Conferma arrivo</button>';
+    const salaRoom = r.salaId ? rooms.find(rm => rm.id === r.salaId) : null;
+    const salaCell = salaRoom
+      ? '<button class="res-sala-link" data-action="open-sala" data-sala-id="' + r.salaId + '">' + escapeHTML(salaRoom.nome || salaRoom.id) + '</button>'
+      : '<span class="res-meta-empty">--</span>';
 
     html += '<tr data-rid="' + r.id + '">' +
       '<td><div><span class="res-cell-name"><span class="res-meal-mini">' + RES_ICONS.faUser + '</span>' + escapeHTML(r.name) + phoneIcon + '</span>' + noteLine + '</div></td>' +
       '<td>' + (r.pax || 1) + '</td>' +
       '<td>' + time + '</td>' +
+      '<td>' + salaCell + '</td>' +
       '<td>' + tableV + '</td>' +
       '<td>' + statusHtml + '</td>' +
       '<td><div class="res-action-cell">' +
@@ -2321,9 +2547,10 @@ function renderReservations() {
       btn.addEventListener('click', () => {
         const rid = tr.dataset.rid;
         const action = btn.dataset.action;
-        if (action === 'edit')    openReservationModal(rid);
-        if (action === 'delete')  deleteReservation(rid);
-        if (action === 'confirm') confirmArrival(rid);
+        if (action === 'edit')      openReservationModal(rid);
+        if (action === 'delete')    deleteReservation(rid);
+        if (action === 'confirm')   confirmArrival(rid);
+        if (action === 'open-sala') openDailyFloorPlan(btn.dataset.salaId);
       });
     });
   });
@@ -2447,6 +2674,8 @@ function openReservationModal(rid) {
     notesI.value  = r.notes || '';
     renderTimePicker(timeEl, r.time || '');
     selectedMeal = r.meal || null;
+    selectedSalaId   = r.salaId   || null;
+    selectedTavoloId = r.tableId  || null;
     // needs
     document.querySelectorAll('#resNeeds .res-need-btn').forEach(b => {
       b.classList.toggle('active', (r.needs || []).includes(b.dataset.need));
@@ -2458,9 +2687,13 @@ function openReservationModal(rid) {
     if (prefixSel) prefixSel.value = '+39';
     if (emailI)  emailI.value = '';
     renderTimePicker(timeEl, '');
-    selectedMeal = null;
+    selectedMeal     = null;
+    selectedSalaId   = null;
+    selectedTavoloId = null;
     document.querySelectorAll('#resNeeds .res-need-btn').forEach(b => b.classList.remove('active'));
   }
+  populateResSalaDropdown();
+  populateResTavoloDropdown(selectedSalaId);
 
   _buildResDateChips();
 
@@ -2478,7 +2711,9 @@ function openReservationModal(rid) {
 function closeReservationModal() {
   document.getElementById('reservationModalOverlay').classList.remove('visible');
   editingReservationId = null;
-  selectedMeal = null;
+  selectedMeal     = null;
+  selectedSalaId   = null;
+  selectedTavoloId = null;
 }
 
 function saveReservation() {
@@ -2506,6 +2741,7 @@ function saveReservation() {
       reservations[dk][idx] = {
         id: editingReservationId,
         name, firstName, lastName, meal: selectedMeal, pax, phone, phonePrefix, email, notes, time, needs,
+        salaId: selectedSalaId || null, tableId: selectedTavoloId || null,
         status: prev.status || 'confirmed'
       };
     }
@@ -2513,6 +2749,7 @@ function saveReservation() {
     reservations[dk].push({
       id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name, firstName, lastName, meal: selectedMeal, pax, phone, phonePrefix, email, notes, time, needs,
+      salaId: selectedSalaId || null, tableId: selectedTavoloId || null,
       status: 'confirmed'
     });
   }
@@ -2706,6 +2943,50 @@ function deleteReservation(rid) {
     if (!e.target.closest('.reservation-search')) {
       searchResults.style.display = 'none';
     }
+  });
+
+  // Sala/tavolo dropdowns in modal
+  document.getElementById('resSalaSelect').addEventListener('change', e => {
+    selectedSalaId   = e.target.value || null;
+    selectedTavoloId = null;
+    populateResTavoloDropdown(selectedSalaId);
+  });
+  document.getElementById('resTavoloSelect').addEventListener('change', e => {
+    selectedTavoloId = e.target.value || null;
+  });
+  document.getElementById('resScegliPiantinaBtn').addEventListener('click', openFloorPlanPicker);
+
+  // Floor plan picker overlay
+  document.getElementById('floorPlanPickerClose').addEventListener('click', () => {
+    document.getElementById('floorPlanPickerOverlay').classList.remove('visible');
+  });
+  document.getElementById('floorPlanPickerOverlay').addEventListener('click', e => {
+    if (e.target.id === 'floorPlanPickerOverlay') document.getElementById('floorPlanPickerOverlay').classList.remove('visible');
+  });
+
+  // Daily floor plan overlay
+  document.getElementById('dailyFloorPlanClose').addEventListener('click', () => {
+    document.getElementById('dailyFloorPlanOverlay').classList.remove('visible');
+  });
+  document.getElementById('dailyFloorPlanOverlay').addEventListener('click', e => {
+    if (e.target.id === 'dailyFloorPlanOverlay') document.getElementById('dailyFloorPlanOverlay').classList.remove('visible');
+  });
+
+  // View reservation from floor plan
+  document.getElementById('viewResFloorClose').addEventListener('click', () => {
+    document.getElementById('viewResFloorOverlay').classList.remove('visible');
+  });
+  document.getElementById('viewResFloorClose2').addEventListener('click', () => {
+    document.getElementById('viewResFloorOverlay').classList.remove('visible');
+  });
+  document.getElementById('viewResFloorEditBtn').addEventListener('click', () => {
+    const rid = viewingResFloorId;
+    document.getElementById('viewResFloorOverlay').classList.remove('visible');
+    document.getElementById('dailyFloorPlanOverlay').classList.remove('visible');
+    if (rid) openReservationModal(rid);
+  });
+  document.getElementById('viewResFloorOverlay').addEventListener('click', e => {
+    if (e.target.id === 'viewResFloorOverlay') document.getElementById('viewResFloorOverlay').classList.remove('visible');
   });
 
   // Initial render
